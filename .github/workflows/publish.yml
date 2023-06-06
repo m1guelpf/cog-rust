@@ -1,0 +1,32 @@
+name: Publish to Cargo
+
+on:
+  release:
+    types:
+      - created
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  CARGO_TERM_COLOR: always
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: cargo
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Cache build
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: cache
+
+      - name: Cache Version
+        run: .github/.deploy/bump.sh
+
+      - name: Publish Crate
+        uses: katyo/publish-crates@v2
+        with:
+          args: --allow-dirty
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
