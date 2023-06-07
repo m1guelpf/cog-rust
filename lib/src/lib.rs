@@ -1,4 +1,3 @@
-#![feature(return_position_impl_trait_in_trait)]
 #![warn(clippy::all, clippy::pedantic, clippy::nursery)]
 
 use crate::{runner::Runner, shutdown::Shutdown};
