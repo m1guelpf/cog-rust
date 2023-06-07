@@ -8,10 +8,11 @@ Cog bundles Python models into a Docker image with a simple interface for loadin
 
 This is a work in progress. It's not ready for use yet. Check back soon!
 
-To see the proposed DX, check the [hello-world example](examples/hello-world).
+To see the proposed DX, check the [hello-world example](examples/hello-world/src/main.rs).
 
 - [x] Basic web server
 - [x] Rust Cog interface
-- [ ] Make everything work
+- [x] Make everything work
+- [ ] Request validation
 - [ ] Dockerfile
 - [ ] CLI?
