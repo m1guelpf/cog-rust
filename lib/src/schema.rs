@@ -1,4 +1,5 @@
-use crate::routes;
+use crate::{routes, runner::Health};
+use serde_json::Value;
 use utoipa::{OpenApi, ToSchema};
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -30,16 +31,6 @@ pub struct RootResponse {
 ///                              /health-check                              ///
 //////////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug, serde::Serialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum Health {
-    Unknown,
-    Starting,
-    Ready,
-    Busy,
-    SetupFailed,
-}
-
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct HealthCheckSetup {
     /// Setup logs
@@ -58,4 +49,34 @@ pub struct HealthCheck {
     pub status: Health,
     /// Setup information
     pub setup: HealthCheckSetup,
+}
+
+///////////////////////////////////////////////////////////////////////////////
+///                               /predictions                              ///
+//////////////////////////////////////////////////////////////////////////////
+
+#[derive(Debug, serde::Deserialize, ToSchema)]
+pub struct PredictionRequest {
+    /// Input data
+    pub input: Value,
+}
+
+#[derive(Debug, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum PredictionStatus {
+    Processing,
+    Succeeded,
+    Failed,
+}
+
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct Prediction {
+    /// Prediction status
+    pub status: PredictionStatus,
+
+    /// Prediction result
+    pub output: Option<Value>,
+
+    /// Prediction started time
+    pub error: Option<String>,
 }

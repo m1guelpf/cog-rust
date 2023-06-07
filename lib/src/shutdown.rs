@@ -6,7 +6,7 @@ use std::{
     future::Future,
     sync::atomic::{AtomicBool, Ordering},
 };
-use tokio::{signal, sync::mpsc};
+use tokio::{signal, sync::broadcast};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct AlreadyCreatedError;
@@ -21,21 +21,20 @@ impl Display for AlreadyCreatedError {
 
 static CREATED: AtomicBool = AtomicBool::new(false);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Shutdown {
-    pub sender: mpsc::Sender<()>,
-    receiver: mpsc::Receiver<()>,
+    pub sender: broadcast::Sender<()>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Agent {
-    sender: mpsc::Sender<()>,
+    sender: broadcast::Sender<()>,
 }
 
 impl Agent {
-    pub async fn start(&self) {
+    pub fn start(&self) {
         println!("Shutdown requested");
-        self.sender.send(()).await.ok();
+        self.sender.send(()).ok();
     }
 }
 
@@ -45,33 +44,41 @@ impl Shutdown {
             return Err(AlreadyCreatedError);
         }
 
-        let (tx, rx) = mpsc::channel(1);
+        let (tx, _) = broadcast::channel(1);
         let handle = register_handlers();
 
         let tx_for_handle = tx.clone();
         tokio::spawn(async move {
             handle.await;
-            tx_for_handle.send(()).await.ok();
+            tx_for_handle.send(()).ok();
         });
 
-        Ok(Self {
-            sender: tx,
-            receiver: rx,
-        })
+        Ok(Self { sender: tx })
     }
 
-    pub fn handle(&mut self) -> impl Future<Output = ()> + '_ {
-        let rx = self.receiver.recv();
+    pub fn start(&self) {
+        println!("Shutdown requested");
+        self.sender.send(()).ok();
+    }
+
+    pub fn handle(&self) -> impl Future<Output = ()> + '_ {
+        let mut rx = self.sender.subscribe();
 
         async move {
-            rx.await;
+            let rx = rx.recv();
+
+            rx.await.unwrap();
+        }
+    }
+
+    pub fn agent(&self) -> Agent {
+        Agent {
+            sender: self.sender.clone(),
         }
     }
 
     pub fn extension(&self) -> Extension<Agent> {
-        Extension(Agent {
-            sender: self.sender.clone(),
-        })
+        Extension(self.agent())
     }
 }
 

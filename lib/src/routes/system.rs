@@ -1,3 +1,5 @@
+use std::sync::atomic::Ordering;
+
 use axum::{
     routing::{get, post},
     Extension, Json, Router,
@@ -5,7 +7,8 @@ use axum::{
 use chrono::Utc;
 
 use crate::{
-    schema::{Health, HealthCheck, HealthCheckSetup, RootResponse},
+    runner::RUNNER_HEALTH,
+    schema::{HealthCheck, HealthCheckSetup, RootResponse},
     shutdown::Agent as Shutdown,
 };
 
@@ -45,7 +48,7 @@ pub async fn root() -> Json<RootResponse> {
 #[allow(clippy::unused_async)]
 pub async fn health_check() -> Json<HealthCheck> {
     Json(HealthCheck {
-        status: Health::Ready,
+        status: RUNNER_HEALTH.load(Ordering::SeqCst),
         setup: HealthCheckSetup {
             logs: String::new(),
             status: "succeeded".to_string(),
@@ -64,8 +67,9 @@ pub async fn health_check() -> Json<HealthCheck> {
         (status = 200, description = "Successful Response", body = [Json<()>])
     )
 )]
+#[allow(clippy::unused_async)]
 pub async fn shutdown(Extension(shutdown): Extension<Shutdown>) -> Json<String> {
-    shutdown.start().await;
+    shutdown.start();
 
     Json(String::new())
 }
