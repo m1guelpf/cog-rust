@@ -10,4 +10,8 @@ keywords = { workspace = true }
 categories = { workspace = true }
 repository = { workspace = true }
 
+[[bin]]
+name = "cog-rs"
+path = "src/main.rs"
+
 [dependencies]
