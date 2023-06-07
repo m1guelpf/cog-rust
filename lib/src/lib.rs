@@ -9,9 +9,9 @@ use std::{env, net::SocketAddr, num::ParseIntError};
 pub use spec::{Cog, CogResponse};
 
 mod errors;
+mod helpers;
 mod routes;
 mod runner;
-mod schema;
 mod shutdown;
 mod spec;
 
@@ -22,7 +22,6 @@ mod spec;
 /// This function will return an error if the PORT environment variable is set but cannot be parsed, or if the server fails to start.
 pub async fn start<T: Cog + 'static>() -> Result<()> {
     let shutdown = Shutdown::new()?;
-
     let runner = Runner::new::<T>(shutdown.clone());
 
     let addr = SocketAddr::from((
@@ -31,7 +30,7 @@ pub async fn start<T: Cog + 'static>() -> Result<()> {
     ));
     println!("Listening on {addr}");
 
-    let app = routes::handler()
+    let app = routes::handler::<T>()
         .layer(runner.extension())
         .layer(shutdown.extension());
 
@@ -41,4 +40,14 @@ pub async fn start<T: Cog + 'static>() -> Result<()> {
         .await?;
 
     Ok(())
+}
+
+#[macro_export]
+macro_rules! start {
+    ($struct_name:ident) => {
+        #[tokio::main]
+        async fn main() {
+            cog_rust::start::<$struct_name>().await.unwrap();
+        }
+    };
 }

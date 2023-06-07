@@ -1,5 +1,5 @@
 [package]
-name = "cog-example"
+name = "cog-hello-world"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,5 +7,6 @@ edition = "2021"
 serde = "1.0.163"
 anyhow = "1.0.71"
 async-trait = "0.1.68"
-cog-rust = { path = "../lib" }
+cog-rust = { path = "../../lib" }
 tokio = { version = "1.28.2", features = ["full"] }
+schemars = "0.8.12"

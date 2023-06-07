@@ -33,7 +33,6 @@ pub struct Agent {
 
 impl Agent {
     pub fn start(&self) {
-        println!("Shutdown requested");
         self.sender.send(()).ok();
     }
 }
@@ -57,7 +56,6 @@ impl Shutdown {
     }
 
     pub fn start(&self) {
-        println!("Shutdown requested");
         self.sender.send(()).ok();
     }
 
@@ -105,7 +103,5 @@ fn register_handlers() -> impl Future<Output = ()> {
             _ = ctrl_c => {},
             _ = terminate => {},
         }
-
-        println!("Received shutdown signal");
     }
 }

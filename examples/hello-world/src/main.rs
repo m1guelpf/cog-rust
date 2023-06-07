@@ -1,14 +1,13 @@
-#![feature(return_position_impl_trait_in_trait)]
-
 use anyhow::Result;
 use async_trait::async_trait;
 use cog_rust::Cog;
+use schemars::JsonSchema;
 
 struct ExampleModel {
     prefix: String,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, JsonSchema)]
 struct ModelRequest {
     /// Text to prefix with 'hello '
     text: String,
@@ -30,7 +29,4 @@ impl Cog for ExampleModel {
     }
 }
 
-#[tokio::main]
-async fn main() {
-    cog_rust::start::<ExampleModel>().await.unwrap();
-}
+cog_rust::start!(ExampleModel);

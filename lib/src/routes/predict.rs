@@ -1,15 +1,44 @@
 use std::sync::atomic::Ordering;
 
-use axum::{http::StatusCode, routing::post, Extension, Json, Router};
+use aide::axum::{routing::post, ApiRouter};
+use axum::{http::StatusCode, Extension};
+use axum_jsonschema::Json;
+use schemars::JsonSchema;
+use serde_json::Value;
 
 use crate::{
     errors::HTTPError,
-    runner::{Health, Runner, RUNNER_HEALTH},
-    schema::{Prediction, PredictionRequest, PredictionStatus},
+    runner::{Error as RunnerError, Health, Runner, RUNNER_HEALTH},
 };
 
-pub fn handler() -> Router {
-    Router::new().route("/predictions", post(create_prediction))
+pub fn handler() -> ApiRouter {
+    ApiRouter::new().api_route("/predictions", post(create_prediction))
+}
+
+#[derive(Debug, serde::Deserialize, JsonSchema)]
+pub struct PredictionRequest<T = Value> {
+    /// Input data
+    pub input: T,
+}
+
+#[derive(Debug, serde::Serialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum PredictionStatus {
+    _Processing,
+    Succeeded,
+    Failed,
+}
+
+#[derive(Debug, serde::Serialize, JsonSchema)]
+pub struct Prediction<T = Value> {
+    /// Prediction status
+    pub status: PredictionStatus,
+
+    /// Prediction result
+    pub output: Option<T>,
+
+    /// Prediction started time
+    pub error: Option<String>,
 }
 
 async fn create_prediction(
@@ -22,18 +51,21 @@ async fn create_prediction(
         );
     }
 
-    let output = runner.run(req.input).await;
+    let Ok(input) = serde_json::to_value(req.input) else {
+        return Err(HTTPError::new("Failed to serialize input"));
+    };
 
-    Ok(Json(match output {
-        Ok(output) => Prediction {
+    match runner.run(input).await {
+        Ok(output) => Ok(Json(Prediction {
             error: None,
-            output: Some(output),
+            output: Some(serde_json::from_value(output).unwrap()),
             status: PredictionStatus::Succeeded,
-        },
-        Err(error) => Prediction {
+        })),
+        Err(RunnerError::Serialization(_)) => Err(HTTPError::new("Failed to serialize input")),
+        Err(error) => Ok(Json(Prediction {
             output: None,
             error: Some(error.to_string()),
             status: PredictionStatus::Failed,
-        },
-    }))
+        })),
+    }
 }

@@ -1,3 +1,4 @@
+use aide::OperationOutput;
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
@@ -29,4 +30,8 @@ impl IntoResponse for HTTPError {
     fn into_response(self) -> Response {
         (self.status_code, Json(json!({ "detail": self.detail }))).into_response()
     }
+}
+
+impl OperationOutput for HTTPError {
+    type Inner = Self;
 }

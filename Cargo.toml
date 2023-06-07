@@ -1,3 +1,13 @@
 [workspace]
-members = ["lib", "cli", "example"]
-default-members = ["lib", "cli"]
+members = ["lib", "cli"]
+exclude = ["examples"]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+readme = "README.md"
+license = "Apache-2.0"
+keywords = ["cog", "machine-learning"]
+categories = ["science", "command-line-utilities"]
+repository = "https://github.com/m1guelpf/cog-rust"
+authors = ["Miguel Piedrafita <soy@miguelpiedrafita.com>"]

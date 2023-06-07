@@ -1,33 +1,34 @@
 use std::sync::atomic::Ordering;
 
-use axum::{
+use aide::axum::{
     routing::{get, post},
-    Extension, Json, Router,
+    ApiRouter,
 };
+use axum::Extension;
+use axum_jsonschema::Json;
 use chrono::Utc;
+use schemars::JsonSchema;
 
 use crate::{
-    runner::RUNNER_HEALTH,
-    schema::{HealthCheck, HealthCheckSetup, RootResponse},
+    runner::{Health, RUNNER_HEALTH},
     shutdown::Agent as Shutdown,
 };
 
-pub fn handler() -> Router {
-    Router::new()
-        .route("/", get(root))
-        .route("/health-check", get(health_check))
-        .route("/shutdown", post(shutdown))
+pub fn handler() -> ApiRouter {
+    ApiRouter::new()
+        .api_route("/", get(root))
+        .api_route("/health-check", get(health_check))
+        .api_route("/shutdown", post(shutdown))
 }
 
-#[utoipa::path(
-    get,
-    path = "/",
-    tag = "cog",
-    operation_id = "root__get",
-    responses(
-        (status = 200, description = "Successful Response", body = [RootResponse])
-    )
-)]
+#[derive(Debug, serde::Serialize, JsonSchema)]
+pub struct RootResponse {
+    /// Relative URL to Swagger UI
+    pub docs_url: String,
+    /// Relative URL to OpenAPI specification
+    pub openapi_url: String,
+}
+
 #[allow(clippy::unused_async)]
 pub async fn root() -> Json<RootResponse> {
     Json(RootResponse {
@@ -36,15 +37,26 @@ pub async fn root() -> Json<RootResponse> {
     })
 }
 
-#[utoipa::path(
-    get,
-    tag = "cog",
-    path = "/health-check",
-    operation_id = "healthcheck_health_check_get",
-    responses(
-        (status = 200, description = "Successful Response", body = [HealthCheck])
-    )
-)]
+#[derive(Debug, serde::Serialize, JsonSchema)]
+pub struct HealthCheckSetup {
+    /// Setup logs
+    pub logs: String,
+    /// Setup status
+    pub status: String,
+    /// Setup started time
+    pub started_at: String,
+    /// Setup completed time
+    pub completed_at: String,
+}
+
+#[derive(Debug, serde::Serialize, JsonSchema)]
+pub struct HealthCheck {
+    /// Current health status
+    pub status: Health,
+    /// Setup information
+    pub setup: HealthCheckSetup,
+}
+
 #[allow(clippy::unused_async)]
 pub async fn health_check() -> Json<HealthCheck> {
     Json(HealthCheck {
@@ -58,15 +70,6 @@ pub async fn health_check() -> Json<HealthCheck> {
     })
 }
 
-#[utoipa::path(
-    post,
-    tag = "cog",
-    path = "/shutdown",
-    operation_id = "start_shutdown_shutdown_post",
-    responses(
-        (status = 200, description = "Successful Response", body = [Json<()>])
-    )
-)]
 #[allow(clippy::unused_async)]
 pub async fn shutdown(Extension(shutdown): Extension<Shutdown>) -> Json<String> {
     shutdown.start();
