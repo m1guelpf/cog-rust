@@ -31,7 +31,8 @@ async fn create_prediction(
 	if let Some(id) = id.clone() {
 		let prediction = prediction.read().await;
 		if let Some(prediction_id) = prediction.id.clone() {
-			if Some(prediction_id) != Some(id.clone()) {
+			if Some(prediction_id.clone()) != Some(id.clone()) {
+				tracing::debug!("Trying to run a named prediction {id} while another prediction {prediction_id} is running");
 				return Err(HTTPError::new("Already running a prediction")
 					.with_status(StatusCode::CONFLICT));
 			}
@@ -49,7 +50,7 @@ async fn cancel_prediction(
 	Extension(prediction): ExtractPrediction,
 ) -> Result<Json<()>, HTTPError> {
 	let mut prediction = prediction.write().await;
-	prediction.cancel(id)?;
+	prediction.cancel(&id)?;
 	drop(prediction);
 
 	Ok(Json(()))

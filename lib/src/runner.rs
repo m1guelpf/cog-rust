@@ -55,23 +55,31 @@ impl Runner {
 
 		let handle_shutdown = shutdown.clone();
 		let handle = tokio::spawn(async move {
-			let Ok(cog) = T::setup().await else {
-                RUNNER_HEALTH.swap(Health::SetupFailed, Ordering::SeqCst);
-                handle_shutdown.start();
-                return;
-            };
+			tracing::info!("Running setup()...");
+			let cog = match T::setup().await {
+				Ok(cog) => cog,
+				Err(error) => {
+					tracing::error!("Failed run setup(): {error}");
+					RUNNER_HEALTH.swap(Health::SetupFailed, Ordering::SeqCst);
+					handle_shutdown.start();
+					return;
+				},
+			};
 
 			RUNNER_HEALTH.swap(Health::Ready, Ordering::SeqCst);
 
 			while let Some((tx, input)) = rx.recv().await {
+				tracing::debug!("Processing prediction: {input}");
 				let start = Instant::now();
 				RUNNER_HEALTH.swap(Health::Busy, Ordering::SeqCst);
 
 				tokio::select! {
 					_ = cancel.recv_async() => {
 						let _ = tx.send(Err(Error::Canceled));
+						tracing::debug!("Prediction canceled");
 					}
 					response = cog.predict(serde_json::from_value(input).unwrap()) => {
+						tracing::debug!("Prediction complete: {response:?}");
 						let _ = tx.send(match response {
 							Ok(response) => Ok((response.into_response(), start.elapsed())),
 							Err(error) => Err(Error::Prediction(error)),
@@ -85,6 +93,7 @@ impl Runner {
 
 		tokio::spawn(async move {
 			shutdown.handle().await;
+			tracing::debug!("Shutting down runner...");
 			handle.abort();
 		});
 
@@ -107,6 +116,7 @@ impl Runner {
 
 	pub async fn run(&self, input: Value) -> Result<(Value, Duration), Error> {
 		if !matches!(RUNNER_HEALTH.load(Ordering::SeqCst), Health::Ready) {
+			tracing::debug!("Failed to run prediction: runner is busy");
 			return Err(Error::Busy);
 		}
 
@@ -115,9 +125,11 @@ impl Runner {
 
 		let (tx, rx) = oneshot::channel();
 
-		self.sender.send((tx, input)).await.unwrap_or_default();
-
+		tracing::debug!("Sending prediction to runner: {input}");
+		let _ = self.sender.send((tx, input)).await;
+		tracing::debug!("Waiting for prediction response...");
 		let result = rx.await.unwrap();
+		tracing::debug!("Prediction response received: {result:?}");
 
 		RUNNER_HEALTH.swap(Health::Ready, Ordering::SeqCst);
 

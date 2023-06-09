@@ -1,4 +1,9 @@
-use std::{collections::HashMap, future::Future, sync::Arc, time::Duration};
+use std::{
+	collections::HashMap,
+	future::Future,
+	sync::{atomic::Ordering, Arc},
+	time::Duration,
+};
 
 use chrono::{DateTime, Utc};
 use map_macro::hash_map;
@@ -10,7 +15,7 @@ use url::Url;
 
 use crate::{
 	errors::ValidationErrorSet,
-	runner::{Error as RunnerError, Runner},
+	runner::{Error as RunnerError, Health, Runner, RUNNER_HEALTH},
 	shutdown::Shutdown,
 	Cog,
 };
@@ -68,17 +73,24 @@ impl Prediction {
 			request: None,
 			complete: None,
 			response: None,
+			cancel: cancel_tx,
 			status: Status::Idle,
 			shutdown: shutdown.clone(),
-			cancel: cancel_tx,
 			runner: Runner::new::<T>(shutdown, cancel_rx),
 		}
 	}
 
 	pub fn init(&mut self, id: Option<String>, req: Request) -> Result<&mut Self, Error> {
 		if !matches!(self.status, Status::Idle) {
+			tracing::debug!("Attempted to re-initialize a prediction");
 			return Err(Error::AlreadyRunning);
 		}
+
+		self.runner
+			.validate(&req.input)
+			.map_err(|e| e.fill_loc(&["body", "input"]))?;
+
+		tracing::debug!("Initializing prediction: {id:?}");
 
 		self.id = id;
 		self.request = Some(req);
@@ -94,48 +106,51 @@ impl Prediction {
 	}
 
 	pub async fn wait_for(&self, id: String) -> Result<Response, Error> {
-		if self.id != Some(id) {
+		if self.id != Some(id.clone()) {
+			tracing::debug!("Attempted to wait for prediction with unknown ID: {id:?}");
 			return Err(Error::Unknown);
 		}
 
 		if let Some(response) = self.response.clone() {
+			tracing::debug!("Prediction already complete: {id:?}");
 			return Ok(response);
 		}
 
 		if !matches!(self.status, Status::Processing) {
+			tracing::debug!("Attempted to wait for prediction that isn't running: {id:?}");
 			return Err(Error::AlreadyRunning);
 		}
 
-		// If the previous receiver was dropped, the prediction is complete
-		if self.complete.as_ref().unwrap().is_disconnected() {
-			return Err(Error::Unknown);
-		}
-
+		tracing::debug!("Waiting for prediction: {id:?}");
 		let complete = self.complete.as_ref().unwrap();
 		Ok(complete.recv_async().await?)
 	}
 
 	pub fn process(&mut self) -> Result<impl Future<Output = ()> + '_, Error> {
 		if !matches!(self.status, Status::Starting) {
+			tracing::debug!(
+				"Attempted to process prediction while not ready: {:?}",
+				self.id
+			);
 			return Err(Error::AlreadyRunning);
 		}
 
 		let req = self.request.clone().unwrap();
-		self.runner
-			.validate(&req.input)
-			.map_err(|e| e.fill_loc(&["body", "input"]))?;
-
 		self.status = Status::Processing;
 
 		let (complete_tx, complete_rx) = flume::bounded(1);
 		self.complete = Some(complete_rx);
 
 		Ok(async move {
+			tracing::debug!("Running prediction: {:?}", self.id);
 			tokio::select! {
 				_ = self.shutdown.handle() => {
+					tracing::debug!("Shutdown requested. Cancelling running prediction: {:?}", self.id);
 					return;
 				},
 				output = self.runner.run(req.input.clone()) => {
+					tracing::debug!("Prediction complete: {:?}", self.id);
+
 					match output {
 						Ok((output, predict_time)) => {
 							self.status = Status::Succeeded;
@@ -157,25 +172,36 @@ impl Prediction {
 	}
 
 	pub fn result(&mut self) -> Result<Response, Error> {
-		if !matches!(self.status, Status::Succeeded | Status::Failed) {
+		if !matches!(
+			self.status,
+			Status::Succeeded | Status::Failed | Status::Canceled
+		) {
+			tracing::debug!(
+				"Attempted to get result of prediction that is not complete: {:?}",
+				self.id
+			);
 			return Err(Error::NotComplete);
 		}
 
+		tracing::debug!("Getting result of prediction: {:?}", self.id);
 		let response = self.response.clone().ok_or(Error::NotComplete)?;
 		self.reset();
 
 		Ok(response)
 	}
 
-	pub fn cancel(&mut self, id: String) -> Result<&mut Self, Error> {
-		if self.id != Some(id) {
+	pub fn cancel(&mut self, id: &str) -> Result<&mut Self, Error> {
+		if self.id != Some(id.to_string()) {
+			tracing::debug!("Attempted to cancel prediction with unknown ID: {id}");
 			return Err(Error::Unknown);
 		}
 
 		if !matches!(self.status, Status::Processing) {
+			tracing::debug!("Attempted to cancel prediction that is not running: {id}");
 			return Err(Error::AlreadyRunning);
 		}
 
+		tracing::debug!("Canceling prediction: {id}");
 		self.cancel.send(()).unwrap();
 		self.status = Status::Canceled;
 
@@ -183,6 +209,8 @@ impl Prediction {
 	}
 
 	fn reset(&mut self) {
+		tracing::debug!("Resetting prediction");
+
 		self.id = None;
 		self.request = None;
 		self.response = None;
@@ -216,8 +244,12 @@ impl<'a> SyncGuard<'a> {
 
 impl Drop for SyncGuard<'_> {
 	fn drop(&mut self) {
-		self.prediction.cancel.send(()).unwrap();
+		tracing::debug!("SyncGuard dropped, resetting prediction");
+
 		self.prediction.reset();
+		if matches!(RUNNER_HEALTH.load(Ordering::SeqCst), Health::Busy) {
+			self.prediction.cancel.send(()).unwrap();
+		}
 	}
 }
 

@@ -99,11 +99,11 @@ impl From<PredictionError> for HTTPError {
 				status_code: StatusCode::NOT_FOUND,
 				detail: serde_json::to_value(e.to_string()).unwrap(),
 			},
-			PredictionError::Validation(e) => e.into(),
 			PredictionError::AlreadyRunning => Self {
 				status_code: StatusCode::CONFLICT,
 				detail: serde_json::to_value(e.to_string()).unwrap(),
 			},
+			PredictionError::Validation(e) => e.into(),
 			PredictionError::NotComplete | PredictionError::ReceiverError(_) => Self {
 				status_code: StatusCode::INTERNAL_SERVER_ERROR,
 				detail: serde_json::to_value(e.to_string()).unwrap(),

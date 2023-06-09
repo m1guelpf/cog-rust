@@ -13,7 +13,9 @@ repository = { workspace = true }
 [dependencies]
 axum = "0.6.18"
 anyhow = "1.0.71"
+flume = "0.10.14"
 serde = "1.0.163"
+tracing = "0.1.37"
 indexmap = "1.9.3"
 titlecase = "2.2.1"
 map-macro = "0.2.6"
@@ -28,4 +30,4 @@ chrono = { version = "0.4.26", features = ["serde"] }
 axum-jsonschema = { version = "0.6.0", features = ["aide"] }
 jsonschema = { version = "0.17.0", default-features = false }
 schemars = { version = "0.8.12", features = ["chrono", "url"] }
-flume = "0.10.14"
+tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }

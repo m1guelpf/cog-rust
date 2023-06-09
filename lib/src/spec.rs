@@ -1,5 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
+use core::fmt::Debug;
 use schemars::JsonSchema;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
@@ -7,7 +8,7 @@ use serde_json::Value;
 #[async_trait]
 pub trait Cog: Sized + Send {
 	type Request: DeserializeOwned + JsonSchema;
-	type Response: CogResponse + JsonSchema;
+	type Response: CogResponse + Debug + JsonSchema;
 
 	/// Setup the cog
 	///

@@ -4,6 +4,9 @@ use crate::{prediction::Prediction, shutdown::Shutdown};
 use anyhow::Result;
 use axum::Server;
 use std::{env, net::SocketAddr, num::ParseIntError};
+use tracing_subscriber::{
+	prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer,
+};
 
 pub use spec::{Cog, CogResponse};
 
@@ -21,6 +24,12 @@ mod spec;
 ///
 /// This function will return an error if the PORT environment variable is set but cannot be parsed, or if the server fails to start.
 pub async fn start<T: Cog + 'static>() -> Result<()> {
+	tracing_subscriber::registry()
+		.with(tracing_subscriber::fmt::layer().with_filter(
+			EnvFilter::try_from_default_env().unwrap_or_else(|_| "cog_rust=info".into()),
+		))
+		.init();
+
 	let shutdown = Shutdown::new()?;
 	let prediction = Prediction::setup::<T>(shutdown.clone());
 
@@ -28,12 +37,12 @@ pub async fn start<T: Cog + 'static>() -> Result<()> {
 		[0, 0, 0, 0],
 		env::var("PORT").map_or(Ok::<u16, ParseIntError>(5000), |p| p.parse())?,
 	));
-	println!("Listening on {addr}");
 
 	let app = routes::handler::<T>()
 		.layer(prediction.extension())
 		.layer(shutdown.extension());
 
+	tracing::info!("Starting server on {addr}...");
 	Server::bind(&addr)
 		.serve(app.into_make_service())
 		.with_graceful_shutdown(shutdown.handle())

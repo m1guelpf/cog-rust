@@ -40,6 +40,7 @@ impl Agent {
 impl Shutdown {
 	pub fn new() -> Result<Self, AlreadyCreatedError> {
 		if (CREATED).swap(true, Ordering::SeqCst) {
+			tracing::error!("shutdown handler called twice");
 			return Err(AlreadyCreatedError);
 		}
 
@@ -48,6 +49,7 @@ impl Shutdown {
 
 		let tx_for_handle = tx.clone();
 		tokio::spawn(async move {
+			tracing::debug!("Registered shutdown handlers");
 			handle.await;
 			tx_for_handle.send(()).ok();
 		});
@@ -56,6 +58,7 @@ impl Shutdown {
 	}
 
 	pub fn start(&self) {
+		tracing::debug!("Manually requested shutdown.");
 		self.sender.send(()).ok();
 	}
 
@@ -100,8 +103,12 @@ fn register_handlers() -> impl Future<Output = ()> {
 
 	async {
 		tokio::select! {
-			_ = ctrl_c => {},
-			_ = terminate => {},
+			_ = ctrl_c => {
+				tracing::info!("Received Ctrl+C signal");
+			},
+			_ = terminate => {
+				tracing::info!("Received terminate signal");
+			},
 		}
 	}
 }
