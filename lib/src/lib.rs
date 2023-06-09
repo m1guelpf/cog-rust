@@ -1,9 +1,6 @@
 #![warn(clippy::all, clippy::pedantic, clippy::nursery)]
 
-use crate::{prediction::Prediction, shutdown::Shutdown};
 use anyhow::Result;
-use axum::Server;
-use std::{env, net::SocketAddr, num::ParseIntError};
 use tracing_subscriber::{
 	prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer,
 };
@@ -15,6 +12,7 @@ mod helpers;
 mod prediction;
 mod routes;
 mod runner;
+mod server;
 mod shutdown;
 mod spec;
 mod webhooks;
@@ -31,25 +29,7 @@ pub async fn start<T: Cog + 'static>() -> Result<()> {
 		))
 		.init();
 
-	let shutdown = Shutdown::new()?;
-	let prediction = Prediction::setup::<T>(shutdown.clone());
-
-	let addr = SocketAddr::from((
-		[0, 0, 0, 0],
-		env::var("PORT").map_or(Ok::<u16, ParseIntError>(5000), |p| p.parse())?,
-	));
-
-	let app = routes::handler::<T>()
-		.layer(prediction.extension())
-		.layer(shutdown.extension());
-
-	tracing::info!("Starting server on {addr}...");
-	Server::bind(&addr)
-		.serve(app.into_make_service())
-		.with_graceful_shutdown(shutdown.handle())
-		.await?;
-
-	Ok(())
+	server::start::<T>().await
 }
 
 #[macro_export]

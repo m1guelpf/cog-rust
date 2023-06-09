@@ -1,5 +1,5 @@
 [package]
-name = "cog-cli"
+name = "cargo-cog"
 description = "Reserved for future use"
 readme = { workspace = true }
 version = { workspace = true }
@@ -9,9 +9,5 @@ license = { workspace = true }
 keywords = { workspace = true }
 categories = { workspace = true }
 repository = { workspace = true }
-
-[[bin]]
-name = "cog-rs"
-path = "src/main.rs"
 
 [dependencies]
