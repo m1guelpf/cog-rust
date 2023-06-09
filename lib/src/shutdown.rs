@@ -1,10 +1,10 @@
 use axum::Extension;
 use std::{
-    error::Error,
-    fmt,
-    fmt::Display,
-    future::Future,
-    sync::atomic::{AtomicBool, Ordering},
+	error::Error,
+	fmt,
+	fmt::Display,
+	future::Future,
+	sync::atomic::{AtomicBool, Ordering},
 };
 use tokio::{signal, sync::broadcast};
 
@@ -14,94 +14,94 @@ pub struct AlreadyCreatedError;
 impl Error for AlreadyCreatedError {}
 
 impl Display for AlreadyCreatedError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("shutdown handler already created")
-    }
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.write_str("shutdown handler already created")
+	}
 }
 
 static CREATED: AtomicBool = AtomicBool::new(false);
 
 #[derive(Debug, Clone)]
 pub struct Shutdown {
-    pub sender: broadcast::Sender<()>,
+	pub sender: broadcast::Sender<()>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Agent {
-    sender: broadcast::Sender<()>,
+	sender: broadcast::Sender<()>,
 }
 
 impl Agent {
-    pub fn start(&self) {
-        self.sender.send(()).ok();
-    }
+	pub fn start(&self) {
+		self.sender.send(()).ok();
+	}
 }
 
 impl Shutdown {
-    pub fn new() -> Result<Self, AlreadyCreatedError> {
-        if (CREATED).swap(true, Ordering::SeqCst) {
-            return Err(AlreadyCreatedError);
-        }
+	pub fn new() -> Result<Self, AlreadyCreatedError> {
+		if (CREATED).swap(true, Ordering::SeqCst) {
+			return Err(AlreadyCreatedError);
+		}
 
-        let (tx, _) = broadcast::channel(1);
-        let handle = register_handlers();
+		let (tx, _) = broadcast::channel(1);
+		let handle = register_handlers();
 
-        let tx_for_handle = tx.clone();
-        tokio::spawn(async move {
-            handle.await;
-            tx_for_handle.send(()).ok();
-        });
+		let tx_for_handle = tx.clone();
+		tokio::spawn(async move {
+			handle.await;
+			tx_for_handle.send(()).ok();
+		});
 
-        Ok(Self { sender: tx })
-    }
+		Ok(Self { sender: tx })
+	}
 
-    pub fn start(&self) {
-        self.sender.send(()).ok();
-    }
+	pub fn start(&self) {
+		self.sender.send(()).ok();
+	}
 
-    pub fn handle(&self) -> impl Future<Output = ()> + '_ {
-        let mut rx = self.sender.subscribe();
+	pub fn handle(&self) -> impl Future<Output = ()> + '_ {
+		let mut rx = self.sender.subscribe();
 
-        async move {
-            let rx = rx.recv();
+		async move {
+			let rx = rx.recv();
 
-            rx.await.unwrap();
-        }
-    }
+			rx.await.unwrap();
+		}
+	}
 
-    pub fn agent(&self) -> Agent {
-        Agent {
-            sender: self.sender.clone(),
-        }
-    }
+	pub fn agent(&self) -> Agent {
+		Agent {
+			sender: self.sender.clone(),
+		}
+	}
 
-    pub fn extension(&self) -> Extension<Agent> {
-        Extension(self.agent())
-    }
+	pub fn extension(&self) -> Extension<Agent> {
+		Extension(self.agent())
+	}
 }
 
 fn register_handlers() -> impl Future<Output = ()> {
-    let ctrl_c = async {
-        signal::ctrl_c()
-            .await
-            .expect("failed to install Ctrl+C handler");
-    };
+	let ctrl_c = async {
+		signal::ctrl_c()
+			.await
+			.expect("failed to install Ctrl+C handler");
+	};
 
-    #[cfg(unix)]
-    let terminate = async {
-        signal::unix::signal(signal::unix::SignalKind::terminate())
-            .expect("failed to install signal handler")
-            .recv()
-            .await;
-    };
+	#[cfg(unix)]
+	let terminate = async {
+		signal::unix::signal(signal::unix::SignalKind::terminate())
+			.expect("failed to install signal handler")
+			.recv()
+			.await;
+	};
 
-    #[cfg(not(unix))]
-    let terminate = std::future::pending::<()>();
+	#[cfg(not(unix))]
+	let terminate = std::future::pending::<()>();
 
-    async {
-        tokio::select! {
-            _ = ctrl_c => {},
-            _ = terminate => {},
-        }
-    }
+	async {
+		tokio::select! {
+			_ = ctrl_c => {},
+			_ = terminate => {},
+		}
+	}
 }
