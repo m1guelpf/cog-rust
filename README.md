@@ -13,6 +13,6 @@ To see the proposed DX, check the [hello-world example](examples/hello-world/src
 - [x] Basic web server
 - [x] Rust Cog interface
 - [x] Make everything work
-- [ ] Request validation
+- [x] Request validation
 - [ ] Dockerfile
 - [ ] CLI?
