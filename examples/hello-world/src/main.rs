@@ -25,7 +25,6 @@ impl Cog for ExampleModel {
 	}
 
 	async fn predict(&self, input: Self::Request) -> Result<Self::Response> {
-		tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 		Ok(format!("{} {}", self.prefix, input.text))
 	}
 }
