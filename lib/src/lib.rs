@@ -17,6 +17,7 @@ mod routes;
 mod runner;
 mod shutdown;
 mod spec;
+mod webhooks;
 
 /// Start the server with the given cog.
 ///

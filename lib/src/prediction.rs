@@ -17,6 +17,7 @@ use crate::{
 	errors::ValidationErrorSet,
 	runner::{Error as RunnerError, Health, Runner, RUNNER_HEALTH},
 	shutdown::Shutdown,
+	webhooks::{WebhookEvent, WebhookSender},
 	Cog,
 };
 
@@ -58,9 +59,10 @@ pub struct Prediction {
 	status: Status,
 	pub id: Option<String>,
 	pub shutdown: Shutdown,
-	request: Option<Request>,
+	webhooks: WebhookSender,
 	cancel: flume::Sender<()>,
-	response: Option<Response>,
+	pub request: Option<Request>,
+	pub response: Option<Response>,
 	complete: Option<flume::Receiver<Response>>,
 }
 
@@ -76,6 +78,7 @@ impl Prediction {
 			cancel: cancel_tx,
 			status: Status::Idle,
 			shutdown: shutdown.clone(),
+			webhooks: WebhookSender::new().unwrap(),
 			runner: Runner::new::<T>(shutdown, cancel_rx),
 		}
 	}
@@ -143,6 +146,13 @@ impl Prediction {
 
 		Ok(async move {
 			tracing::debug!("Running prediction: {:?}", self.id);
+
+			let started_at = Utc::now();
+
+			if let Err(e) = self.webhooks.starting(self).await {
+				tracing::error!("Failed to send start webhook for prediction: {e:?}",);
+			};
+
 			tokio::select! {
 				_ = self.shutdown.handle() => {
 					tracing::debug!("Shutdown requested. Cancelling running prediction: {:?}", self.id);
@@ -154,17 +164,22 @@ impl Prediction {
 					match output {
 						Ok((output, predict_time)) => {
 							self.status = Status::Succeeded;
-							self.response = Some(Response::success(self.id.clone(), req, output, predict_time));
+							self.response = Some(Response::success(self.id.clone(), req, output, predict_time, started_at));
 						},
 						Err(RunnerError::Canceled) => {
 							self.status = Status::Canceled;
-							self.response = Some(Response::canceled(self.id.clone(), req));
+							self.response = Some(Response::canceled(self.id.clone(), req, started_at));
+
 						},
 						Err(error) => {
 							self.status = Status::Failed;
-							self.response = Some(Response::error(self.id.clone(), req, &error));
+							self.response = Some(Response::error(self.id.clone(), req, &error, started_at));
 						}
 					}
+
+					if let Err(e) = self.webhooks.finished(self, self.response.clone().unwrap()).await {
+						tracing::error!("Failed to send finished webhook for prediction: {e:?}",);
+					};
 				}
 			}
 			complete_tx.send(self.response.clone().unwrap()).unwrap();
@@ -254,14 +269,6 @@ impl Drop for SyncGuard<'_> {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, JsonSchema)]
-pub enum WebhookEvent {
-	Start,
-	Output,
-	Logs,
-	Completed,
-}
-
-#[derive(Debug, Clone, serde::Deserialize, JsonSchema)]
 pub struct Request<T = Value> {
 	pub webhook: Option<Url>,
 	pub webhook_event_filters: Option<Vec<WebhookEvent>>,
@@ -295,32 +302,53 @@ impl Response {
 		req: Request,
 		output: Value,
 		predict_time: Duration,
+		started_at: DateTime<Utc>,
 	) -> Self {
 		Self {
 			id,
 			output: Some(output),
 			input: Some(req.input),
 			status: Status::Succeeded,
+			started_at: Some(started_at),
+			completed_at: Some(Utc::now()),
 			metrics: Some(hash_map! {
 				"predict_time".to_string() => predict_time.as_secs_f64().into()
 			}),
 			..Self::default()
 		}
 	}
-	pub fn error(id: Option<String>, req: Request, error: &RunnerError) -> Self {
+	pub fn error(
+		id: Option<String>,
+		req: Request,
+		error: &RunnerError,
+		started_at: DateTime<Utc>,
+	) -> Self {
 		Self {
 			id,
 			input: Some(req.input),
 			status: Status::Failed,
+			started_at: Some(started_at),
 			error: Some(error.to_string()),
 			..Self::default()
 		}
 	}
-	pub fn canceled(id: Option<String>, req: Request) -> Self {
+
+	pub fn starting(id: Option<String>, req: Request) -> Self {
+		Self {
+			id,
+			input: Some(req.input),
+			status: Status::Processing,
+			started_at: Some(Utc::now()),
+			..Self::default()
+		}
+	}
+
+	pub fn canceled(id: Option<String>, req: Request, started_at: DateTime<Utc>) -> Self {
 		Self {
 			id,
 			input: Some(req.input),
 			status: Status::Canceled,
+			started_at: Some(started_at),
 			..Self::default()
 		}
 	}

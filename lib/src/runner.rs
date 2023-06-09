@@ -4,6 +4,7 @@ use jsonschema::JSONSchema;
 use schemars::{schema_for, JsonSchema};
 use serde_json::Value;
 use std::{
+	env,
 	sync::{atomic::Ordering, Arc},
 	time::{Duration, Instant},
 };
@@ -56,17 +57,42 @@ impl Runner {
 		let handle_shutdown = shutdown.clone();
 		let handle = tokio::spawn(async move {
 			tracing::info!("Running setup()...");
-			let cog = match T::setup().await {
-				Ok(cog) => cog,
-				Err(error) => {
-					tracing::error!("Failed run setup(): {error}");
+			let cog = tokio::select! {
+				_ = tokio::time::sleep(Duration::from_secs(5 * 60)) => {
+					tracing::error!("Failed run setup(): Timed out");
 					RUNNER_HEALTH.swap(Health::SetupFailed, Ordering::SeqCst);
 					handle_shutdown.start();
 					return;
-				},
+				}
+				cog = T::setup() => {
+					match cog {
+						Ok(cog) => cog,
+						Err(error) => {
+							tracing::error!("Failed run setup(): {error}");
+							RUNNER_HEALTH.swap(Health::SetupFailed, Ordering::SeqCst);
+							handle_shutdown.start();
+							return;
+						}
+					}
+				}
 			};
 
 			RUNNER_HEALTH.swap(Health::Ready, Ordering::SeqCst);
+			if env::var("KUBERNETES_SERVICE_HOST").is_ok() {
+				if let Err(err) = tokio::fs::create_dir_all("/var/run/cog").await {
+					tracing::error!("Failed to create cog runtime state directory: {err}");
+					RUNNER_HEALTH.swap(Health::SetupFailed, Ordering::SeqCst);
+					handle_shutdown.start();
+					return;
+				}
+
+				if let Err(error) = tokio::fs::File::create("/var/run/cog/ready").await {
+					tracing::error!("Failed to signal cog is ready: {error}");
+					RUNNER_HEALTH.swap(Health::SetupFailed, Ordering::SeqCst);
+					handle_shutdown.start();
+					return;
+				}
+			}
 
 			while let Some((tx, input)) = rx.recv().await {
 				tracing::debug!("Processing prediction: {input}");
