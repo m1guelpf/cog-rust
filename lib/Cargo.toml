@@ -28,3 +28,4 @@ chrono = { version = "0.4.26", features = ["serde"] }
 axum-jsonschema = { version = "0.6.0", features = ["aide"] }
 jsonschema = { version = "0.17.0", default-features = false }
 schemars = { version = "0.8.12", features = ["chrono", "url"] }
+flume = "0.10.14"

@@ -5,7 +5,7 @@ use map_macro::hash_map;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::sync::{oneshot, RwLock};
+use tokio::sync::RwLock;
 use url::Url;
 
 use crate::{
@@ -30,7 +30,7 @@ pub enum Status {
 
 pub type Extension = axum::Extension<Arc<RwLock<Prediction>>>;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum Error {
 	#[error("Attempted to re-initialize a prediction")]
 	AlreadyRunning,
@@ -41,6 +41,9 @@ pub enum Error {
 	#[error("The requested prediction does not exist")]
 	Unknown,
 
+	#[error("Failed to wait for prediction: {0}")]
+	ReceiverError(#[from] flume::RecvError),
+
 	#[error("Failed to run prediction: {0}")]
 	Validation(#[from] ValidationErrorSet),
 }
@@ -48,31 +51,36 @@ pub enum Error {
 pub struct Prediction {
 	runner: Runner,
 	status: Status,
+	pub id: Option<String>,
 	pub shutdown: Shutdown,
 	request: Option<Request>,
+	cancel: flume::Sender<()>,
 	response: Option<Response>,
-	cancel: Option<oneshot::Sender<()>>,
+	complete: Option<flume::Receiver<Response>>,
 }
 
 impl Prediction {
 	pub fn setup<T: Cog + 'static>(shutdown: Shutdown) -> Self {
+		let (cancel_tx, cancel_rx) = flume::unbounded();
+
 		Self {
-			cancel: None,
+			id: None,
 			request: None,
+			complete: None,
 			response: None,
 			status: Status::Idle,
 			shutdown: shutdown.clone(),
-			runner: Runner::new::<T>(shutdown),
+			cancel: cancel_tx,
+			runner: Runner::new::<T>(shutdown, cancel_rx),
 		}
 	}
 
-	pub fn init(&mut self, req: Request) -> Result<&mut Self, Error> {
-		if let Some(existing_req) = self.request.as_ref() {
-			if req.id.is_none() || req.id == existing_req.id {
-				return Err(Error::AlreadyRunning);
-			}
+	pub fn init(&mut self, id: Option<String>, req: Request) -> Result<&mut Self, Error> {
+		if !matches!(self.status, Status::Idle) {
+			return Err(Error::AlreadyRunning);
 		}
 
+		self.id = id;
 		self.request = Some(req);
 		self.status = Status::Starting;
 
@@ -83,6 +91,28 @@ impl Prediction {
 		self.process()?.await;
 
 		self.result()
+	}
+
+	pub async fn wait_for(&self, id: String) -> Result<Response, Error> {
+		if self.id != Some(id) {
+			return Err(Error::Unknown);
+		}
+
+		if let Some(response) = self.response.clone() {
+			return Ok(response);
+		}
+
+		if !matches!(self.status, Status::Processing) {
+			return Err(Error::AlreadyRunning);
+		}
+
+		// If the previous receiver was dropped, the prediction is complete
+		if self.complete.as_ref().unwrap().is_disconnected() {
+			return Err(Error::Unknown);
+		}
+
+		let complete = self.complete.as_ref().unwrap();
+		Ok(complete.recv_async().await?)
 	}
 
 	pub fn process(&mut self) -> Result<impl Future<Output = ()> + '_, Error> {
@@ -97,30 +127,32 @@ impl Prediction {
 
 		self.status = Status::Processing;
 
-		let (cancel_tx, cancel_rx) = oneshot::channel();
-		self.cancel = Some(cancel_tx);
+		let (complete_tx, complete_rx) = flume::bounded(1);
+		self.complete = Some(complete_rx);
 
-		//TODO(cancel): cancel the prediction if a cancel signal is received
 		Ok(async move {
 			tokio::select! {
-				_ = cancel_rx => {
-					self.status = Status::Canceled;
-					self.response = Some(Response::canceled(req));
+				_ = self.shutdown.handle() => {
+					return;
 				},
-				_ = self.shutdown.handle() => {},
 				output = self.runner.run(req.input.clone()) => {
 					match output {
 						Ok((output, predict_time)) => {
 							self.status = Status::Succeeded;
-							self.response = Some(Response::success(req, output, predict_time));
+							self.response = Some(Response::success(self.id.clone(), req, output, predict_time));
+						},
+						Err(RunnerError::Canceled) => {
+							self.status = Status::Canceled;
+							self.response = Some(Response::canceled(self.id.clone(), req));
 						},
 						Err(error) => {
 							self.status = Status::Failed;
-							self.response = Some(Response::error(req, &error));
+							self.response = Some(Response::error(self.id.clone(), req, &error));
 						}
 					}
 				}
 			}
+			complete_tx.send(self.response.clone().unwrap()).unwrap();
 		})
 	}
 
@@ -136,33 +168,56 @@ impl Prediction {
 	}
 
 	pub fn cancel(&mut self, id: String) -> Result<&mut Self, Error> {
-		match self.request {
-			Some(ref req) => {
-				if req.id != Some(id) {
-					return Err(Error::Unknown);
-				}
-			},
-			_ => return Err(Error::Unknown),
+		if self.id != Some(id) {
+			return Err(Error::Unknown);
 		}
 
 		if !matches!(self.status, Status::Processing) {
 			return Err(Error::AlreadyRunning);
 		}
 
-		self.cancel.take().unwrap().send(()).unwrap();
+		self.cancel.send(()).unwrap();
 		self.status = Status::Canceled;
 
 		Ok(self)
 	}
 
 	fn reset(&mut self) {
+		self.id = None;
 		self.request = None;
 		self.response = None;
+		self.complete = None;
 		self.status = Status::Idle;
 	}
 
 	pub fn extension(self) -> Extension {
 		axum::Extension(Arc::new(RwLock::new(self)))
+	}
+}
+
+pub struct SyncGuard<'a> {
+	prediction: tokio::sync::RwLockWriteGuard<'a, Prediction>,
+}
+
+impl<'a> SyncGuard<'a> {
+	pub fn new(prediction: tokio::sync::RwLockWriteGuard<'a, Prediction>) -> Self {
+		Self { prediction }
+	}
+
+	pub fn init(&mut self, id: Option<String>, req: Request) -> Result<&mut Self, Error> {
+		self.prediction.init(id, req)?;
+		Ok(self)
+	}
+
+	pub async fn run(&mut self) -> Result<Response, Error> {
+		self.prediction.run().await
+	}
+}
+
+impl Drop for SyncGuard<'_> {
+	fn drop(&mut self) {
+		self.prediction.cancel.send(()).unwrap();
+		self.prediction.reset();
 	}
 }
 
@@ -176,7 +231,6 @@ pub enum WebhookEvent {
 
 #[derive(Debug, Clone, serde::Deserialize, JsonSchema)]
 pub struct Request<T = Value> {
-	pub id: Option<String>,
 	pub webhook: Option<Url>,
 	pub webhook_event_filters: Option<Vec<WebhookEvent>>,
 	pub output_file_prefix: Option<String>,
@@ -204,9 +258,14 @@ pub struct Response<Req = Value, Res = Value> {
 }
 
 impl Response {
-	pub fn success(req: Request, output: Value, predict_time: Duration) -> Self {
+	pub fn success(
+		id: Option<String>,
+		req: Request,
+		output: Value,
+		predict_time: Duration,
+	) -> Self {
 		Self {
-			id: req.id,
+			id,
 			output: Some(output),
 			input: Some(req.input),
 			status: Status::Succeeded,
@@ -216,18 +275,18 @@ impl Response {
 			..Self::default()
 		}
 	}
-	pub fn error(req: Request, error: &RunnerError) -> Self {
+	pub fn error(id: Option<String>, req: Request, error: &RunnerError) -> Self {
 		Self {
-			id: req.id,
+			id,
 			input: Some(req.input),
 			status: Status::Failed,
 			error: Some(error.to_string()),
 			..Self::default()
 		}
 	}
-	pub fn canceled(req: Request) -> Self {
+	pub fn canceled(id: Option<String>, req: Request) -> Self {
 		Self {
-			id: req.id,
+			id,
 			input: Some(req.input),
 			status: Status::Canceled,
 			..Self::default()

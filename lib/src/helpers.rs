@@ -1,15 +1,6 @@
-use std::time::{Duration, Instant};
-
 use aide::openapi::{OpenApi, SchemaObject, StatusCode};
 use axum::http::Method;
 use schemars::{gen::SchemaGenerator, schema::Schema, JsonSchema};
-
-pub fn with_timing<T>(cb: impl FnOnce() -> T) -> (T, Duration) {
-	let start = Instant::now();
-	let result = cb();
-
-	(result, start.elapsed())
-}
 
 pub fn schema_with_properties<T: JsonSchema>(
 	generator: &mut SchemaGenerator,

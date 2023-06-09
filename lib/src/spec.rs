@@ -17,7 +17,7 @@ pub trait Cog: Sized + Send {
 	async fn setup() -> Result<Self>;
 
 	/// Run a prediction
-	fn predict(&self, input: Self::Request) -> Result<Self::Response>;
+	async fn predict(&self, input: Self::Request) -> Result<Self::Response>;
 }
 
 /// A response from a cog

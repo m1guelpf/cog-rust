@@ -39,13 +39,13 @@ impl OperationOutput for HTTPError {
 	type Inner = Self;
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ValidationError {
 	msg: String,
 	loc: Vec<String>,
 }
 
-#[derive(Debug, thiserror::Error, serde::Serialize)]
+#[derive(Debug, Clone, thiserror::Error, serde::Serialize)]
 #[error("Validation Errors")]
 pub struct ValidationErrorSet {
 	errors: Vec<ValidationError>,
@@ -104,7 +104,7 @@ impl From<PredictionError> for HTTPError {
 				status_code: StatusCode::CONFLICT,
 				detail: serde_json::to_value(e.to_string()).unwrap(),
 			},
-			PredictionError::NotComplete => Self {
+			PredictionError::NotComplete | PredictionError::ReceiverError(_) => Self {
 				status_code: StatusCode::INTERNAL_SERVER_ERROR,
 				detail: serde_json::to_value(e.to_string()).unwrap(),
 			},

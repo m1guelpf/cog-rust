@@ -1,19 +1,19 @@
 use aide::axum::{routing::post, ApiRouter};
 use axum::{extract::Path, http::StatusCode, Extension};
 use axum_jsonschema::Json;
-use std::sync::atomic::Ordering;
 
 use crate::{
 	errors::HTTPError,
 	prediction::{
 		Extension as ExtractPrediction, Request as PredictionRequest, Response as Prediction,
+		SyncGuard,
 	},
-	runner::{Health, RUNNER_HEALTH},
 };
 
 pub fn handler() -> ApiRouter {
 	ApiRouter::new()
 		.api_route("/predictions", post(create_prediction))
+		.api_route("/predictions/:prediction_id", post(create_prediction))
 		.api_route(
 			"/predictions/:prediction_id/cancel",
 			post(cancel_prediction),
@@ -21,17 +21,27 @@ pub fn handler() -> ApiRouter {
 }
 
 async fn create_prediction(
+	id: Option<Path<String>>,
 	Extension(prediction): ExtractPrediction,
 	Json(req): Json<PredictionRequest>,
 ) -> Result<Json<Prediction>, HTTPError> {
-	if matches!(RUNNER_HEALTH.load(Ordering::SeqCst), Health::Busy) {
-		return Err(
-			HTTPError::new("Already running a prediction").with_status(StatusCode::CONFLICT)
-		);
+	let id = id.map(|id| id.0);
+
+	// If the user provides an ID, we check if there is already a prediction running with that ID and if so, wait for it to finish and return the result.
+	if let Some(id) = id.clone() {
+		let prediction = prediction.read().await;
+		if let Some(prediction_id) = prediction.id.clone() {
+			if Some(prediction_id) != Some(id.clone()) {
+				return Err(HTTPError::new("Already running a prediction")
+					.with_status(StatusCode::CONFLICT));
+			}
+
+			return Ok(Json(prediction.wait_for(id).await?));
+		}
 	}
 
-	let mut prediction = prediction.write().await;
-	Ok(Json(prediction.init(req)?.run().await?))
+	let mut prediction = SyncGuard::new(prediction.write().await);
+	Ok(Json(prediction.init(id, req)?.run().await?))
 }
 
 async fn cancel_prediction(

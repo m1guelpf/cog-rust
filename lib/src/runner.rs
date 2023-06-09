@@ -5,18 +5,19 @@ use schemars::{schema_for, JsonSchema};
 use serde_json::Value;
 use std::{
 	sync::{atomic::Ordering, Arc},
-	time::Duration,
+	time::{Duration, Instant},
 };
 use tokio::sync::{mpsc, oneshot};
 
-use crate::{
-	errors::ValidationErrorSet, helpers::with_timing, shutdown::Shutdown, spec::Cog, CogResponse,
-};
+use crate::{errors::ValidationErrorSet, shutdown::Shutdown, spec::Cog, CogResponse};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
 	#[error("Runner is busy")]
 	Busy,
+
+	#[error("Prediction was canceled")]
+	Canceled,
 
 	#[error("Failed to validate input.")]
 	Validation(ValidationErrorSet),
@@ -47,7 +48,7 @@ pub struct Runner {
 }
 
 impl Runner {
-	pub fn new<T: Cog + 'static>(shutdown: Shutdown) -> Self {
+	pub fn new<T: Cog + 'static>(shutdown: Shutdown, cancel: flume::Receiver<()>) -> Self {
 		RUNNER_HEALTH.swap(Health::Starting, Ordering::SeqCst);
 
 		let (sender, mut rx) = mpsc::channel::<(ResponseSender, Value)>(1);
@@ -63,17 +64,20 @@ impl Runner {
 			RUNNER_HEALTH.swap(Health::Ready, Ordering::SeqCst);
 
 			while let Some((tx, input)) = rx.recv().await {
+				let start = Instant::now();
 				RUNNER_HEALTH.swap(Health::Busy, Ordering::SeqCst);
 
-				tx.send(
-					match with_timing(|| cog.predict(serde_json::from_value(input).unwrap())) {
-						(Ok(response), predict_time) => {
-							Ok((response.into_response(), predict_time))
-						},
-						(Err(error), _) => Err(Error::Prediction(error)),
-					},
-				)
-				.unwrap();
+				tokio::select! {
+					_ = cancel.recv_async() => {
+						let _ = tx.send(Err(Error::Canceled));
+					}
+					response = cog.predict(serde_json::from_value(input).unwrap()) => {
+						let _ = tx.send(match response {
+							Ok(response) => Ok((response.into_response(), start.elapsed())),
+							Err(error) => Err(Error::Prediction(error)),
+						});
+					}
+				}
 
 				RUNNER_HEALTH.swap(Health::Ready, Ordering::SeqCst);
 			}
