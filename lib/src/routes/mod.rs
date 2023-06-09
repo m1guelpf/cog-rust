@@ -12,7 +12,7 @@ use titlecase::titlecase;
 
 use crate::{
 	helpers::{replace_request_schema, replace_response_schema, schema_with_properties},
-	prediction::{Prediction, Request as PredictionRequest, Response as PredictionResponse},
+	prediction::{Request as PredictionRequest, Response as PredictionResponse},
 	Cog,
 };
 

@@ -5,7 +5,7 @@ use map_macro::hash_map;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::sync::RwLock;
+use tokio::sync::{oneshot, RwLock};
 use url::Url;
 
 use crate::{
@@ -38,6 +38,9 @@ pub enum Error {
 	#[error("Prediction is not yet complete")]
 	NotComplete,
 
+	#[error("The requested prediction does not exist")]
+	Unknown,
+
 	#[error("Failed to run prediction: {0}")]
 	Validation(#[from] ValidationErrorSet),
 }
@@ -48,11 +51,13 @@ pub struct Prediction {
 	pub shutdown: Shutdown,
 	request: Option<Request>,
 	response: Option<Response>,
+	cancel: Option<oneshot::Sender<()>>,
 }
 
 impl Prediction {
 	pub fn setup<T: Cog + 'static>(shutdown: Shutdown) -> Self {
 		Self {
+			cancel: None,
 			request: None,
 			response: None,
 			status: Status::Idle,
@@ -92,14 +97,30 @@ impl Prediction {
 
 		self.status = Status::Processing;
 
+		let (cancel_tx, cancel_rx) = oneshot::channel();
+		self.cancel = Some(cancel_tx);
+
+		//TODO(cancel): cancel the prediction if a cancel signal is received
 		Ok(async move {
-			(self.status, self.response) = match self.runner.run(req.input.clone()).await {
-				Ok((output, predict_time)) => (
-					Status::Succeeded,
-					Some(Response::success(req, output, predict_time)),
-				),
-				Err(error) => (Status::Failed, Some(Response::error(req, &error))),
-			};
+			tokio::select! {
+				_ = cancel_rx => {
+					self.status = Status::Canceled;
+					self.response = Some(Response::canceled(req));
+				},
+				_ = self.shutdown.handle() => {},
+				output = self.runner.run(req.input.clone()) => {
+					match output {
+						Ok((output, predict_time)) => {
+							self.status = Status::Succeeded;
+							self.response = Some(Response::success(req, output, predict_time));
+						},
+						Err(error) => {
+							self.status = Status::Failed;
+							self.response = Some(Response::error(req, &error));
+						}
+					}
+				}
+			}
 		})
 	}
 
@@ -114,11 +135,21 @@ impl Prediction {
 		Ok(response)
 	}
 
-	pub fn cancel(&mut self) -> Result<&mut Self, Error> {
+	pub fn cancel(&mut self, id: String) -> Result<&mut Self, Error> {
+		match self.request {
+			Some(ref req) => {
+				if req.id != Some(id) {
+					return Err(Error::Unknown);
+				}
+			},
+			_ => return Err(Error::Unknown),
+		}
+
 		if !matches!(self.status, Status::Processing) {
 			return Err(Error::AlreadyRunning);
 		}
 
+		self.cancel.take().unwrap().send(()).unwrap();
 		self.status = Status::Canceled;
 
 		Ok(self)
@@ -191,6 +222,14 @@ impl Response {
 			input: Some(req.input),
 			status: Status::Failed,
 			error: Some(error.to_string()),
+			..Self::default()
+		}
+	}
+	pub fn canceled(req: Request) -> Self {
+		Self {
+			id: req.id,
+			input: Some(req.input),
+			status: Status::Canceled,
 			..Self::default()
 		}
 	}

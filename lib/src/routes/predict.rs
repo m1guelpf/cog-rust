@@ -1,5 +1,5 @@
 use aide::axum::{routing::post, ApiRouter};
-use axum::{http::StatusCode, Extension};
+use axum::{extract::Path, http::StatusCode, Extension};
 use axum_jsonschema::Json;
 use std::sync::atomic::Ordering;
 
@@ -12,7 +12,12 @@ use crate::{
 };
 
 pub fn handler() -> ApiRouter {
-	ApiRouter::new().api_route("/predictions", post(create_prediction))
+	ApiRouter::new()
+		.api_route("/predictions", post(create_prediction))
+		.api_route(
+			"/predictions/:prediction_id/cancel",
+			post(cancel_prediction),
+		)
 }
 
 async fn create_prediction(
@@ -27,4 +32,15 @@ async fn create_prediction(
 
 	let mut prediction = prediction.write().await;
 	Ok(Json(prediction.init(req)?.run().await?))
+}
+
+async fn cancel_prediction(
+	Path(id): Path<String>,
+	Extension(prediction): ExtractPrediction,
+) -> Result<Json<()>, HTTPError> {
+	let mut prediction = prediction.write().await;
+	prediction.cancel(id)?;
+	drop(prediction);
+
+	Ok(Json(()))
 }

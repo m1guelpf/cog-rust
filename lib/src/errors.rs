@@ -95,6 +95,10 @@ impl From<ValidationErrorSet> for HTTPError {
 impl From<PredictionError> for HTTPError {
 	fn from(e: PredictionError) -> Self {
 		match e {
+			PredictionError::Unknown => Self {
+				status_code: StatusCode::NOT_FOUND,
+				detail: serde_json::to_value(e.to_string()).unwrap(),
+			},
 			PredictionError::Validation(e) => e.into(),
 			PredictionError::AlreadyRunning => Self {
 				status_code: StatusCode::CONFLICT,
