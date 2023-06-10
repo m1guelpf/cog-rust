@@ -4,6 +4,9 @@ version = "0.0.0"
 edition = "2021"
 publish = false
 
+[package.metadata.cog]
+image = "hello-world-rs"
+
 [dependencies]
 serde = "1.0.163"
 anyhow = "1.0.71"
