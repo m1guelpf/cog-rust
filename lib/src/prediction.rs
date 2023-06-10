@@ -56,7 +56,7 @@ pub enum Error {
 
 pub struct Prediction {
 	runner: Runner,
-	status: Status,
+	pub status: Status,
 	pub id: Option<String>,
 	pub shutdown: Shutdown,
 	webhooks: WebhookSender,
@@ -89,8 +89,7 @@ impl Prediction {
 			return Err(Error::AlreadyRunning);
 		}
 
-		self.runner
-			.validate(&req.input)
+		self.validate(&req.input)
 			.map_err(|e| e.fill_loc(&["body", "input"]))?;
 
 		tracing::debug!("Initializing prediction: {id:?}");
@@ -100,6 +99,10 @@ impl Prediction {
 		self.status = Status::Starting;
 
 		Ok(self)
+	}
+
+	pub fn validate(&self, input: &Value) -> Result<(), ValidationErrorSet> {
+		self.runner.validate(input)
 	}
 
 	pub async fn run(&mut self) -> Result<Response, Error> {
@@ -145,10 +148,11 @@ impl Prediction {
 		self.complete = Some(complete_rx);
 
 		Ok(async move {
+			let started_at = Utc::now();
 			tracing::debug!("Running prediction: {:?}", self.id);
 
-			let started_at = Utc::now();
-
+			self.status = Status::Processing;
+			self.response = Some(Response::starting(self.id.clone(), req.clone()));
 			if let Err(e) = self.webhooks.starting(self).await {
 				tracing::error!("Failed to send start webhook for prediction: {e:?}",);
 			};
@@ -223,7 +227,7 @@ impl Prediction {
 		Ok(self)
 	}
 
-	fn reset(&mut self) {
+	pub fn reset(&mut self) {
 		tracing::debug!("Resetting prediction");
 
 		self.id = None;

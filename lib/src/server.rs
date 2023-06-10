@@ -10,7 +10,7 @@ use schemars::{
 };
 
 use crate::{
-	helpers::{replace_request_schema, replace_response_schema, schema_with_properties},
+	helpers::openapi::{replace_request_schema, replace_response_schema, schema_with_properties},
 	prediction::{self, Prediction},
 	routes,
 	shutdown::Shutdown,
