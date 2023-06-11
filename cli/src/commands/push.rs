@@ -1,6 +1,6 @@
 use crate::{docker::Builder, Context};
 
-pub async fn handle(ctx: Context, image: Option<String>) {
+pub fn handle(ctx: Context, image: Option<String>) {
 	let builder = Builder::new(ctx.cwd);
 
 	if builder.config.image.as_ref().or(image.as_ref()).is_none() {
@@ -8,15 +8,15 @@ pub async fn handle(ctx: Context, image: Option<String>) {
 		std::process::exit(1);
 	}
 
-	let image_name = builder.build(image).await;
+	let image_name = builder.build(image);
 
-	builder.push(&image_name);
+	Builder::push(&image_name);
 	println!("Image '{image_name}' pushed");
 
 	if image_name.starts_with("r8.im/") {
 		println!(
 			"Run your model on Replicate:\n    https://{}",
 			image_name.replacen("r8.im", "replicate.com", 1)
-		)
+		);
 	}
 }

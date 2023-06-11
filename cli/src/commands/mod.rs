@@ -38,9 +38,9 @@ mod push;
 
 pub async fn exec(ctx: Context, command: Command) {
 	match command {
-		Command::Debug => debug::handle(ctx).await,
-		Command::Build { tag } => build::handle(ctx, tag).await,
-		Command::Push { image } => push::handle(ctx, image).await,
+		Command::Debug => debug::handle(&ctx),
+		Command::Build { tag } => build::handle(ctx, tag),
+		Command::Push { image } => push::handle(ctx, image),
 		Command::Login {
 			token_stdin,
 			registry,

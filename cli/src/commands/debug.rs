@@ -3,7 +3,7 @@ use std::path::Path;
 use crate::Context;
 use cargo_toml::Manifest;
 
-pub async fn handle(ctx: Context) {
+pub fn handle(ctx: &Context) {
 	let dockerfile =
 		include_str!("../templates/Dockerfile").replace("{:bin_name}", &get_binary_name(&ctx.cwd));
 

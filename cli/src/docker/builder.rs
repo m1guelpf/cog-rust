@@ -41,12 +41,12 @@ impl Builder {
 		}
 	}
 
-	pub async fn build(&self, tag: Option<String>) -> String {
+	pub fn build(&self, tag: Option<String>) -> String {
 		let dockerfile =
 			include_str!("../templates/Dockerfile").replace("{:bin_name}", &self.binary_name);
 
 		let image_name = self.config.image_name(tag, &self.cwd);
-		Self::build_image(dockerfile, &image_name, None, true);
+		Self::build_image(&dockerfile, &image_name, None, true);
 
 		println!("Adding labels to image...");
 		let output = Command::new("docker")
@@ -62,7 +62,7 @@ impl Builder {
 		let schema = String::from_utf8(output.stdout).expect("Failed to parse schema.");
 
 		Self::build_image(
-			format!("FROM {image_name}"),
+			&format!("FROM {image_name}"),
 			&image_name,
 			Some(hash_map! {
 				"run.cog.version" => "dev",
@@ -80,7 +80,7 @@ impl Builder {
 		image_name
 	}
 
-	pub fn push(&self, image_name: &str) {
+	pub fn push(image_name: &str) {
 		let status = Command::new("docker")
 			.arg("push")
 			.arg(image_name)
@@ -89,13 +89,11 @@ impl Builder {
 			.status()
 			.expect("Failed to push image.");
 
-		if !status.success() {
-			panic!("Failed to push image.");
-		}
+		assert!(status.success(), "Failed to push image.");
 	}
 
 	fn build_image(
-		dockerfile: String,
+		dockerfile: &str,
 		image_name: &str,
 		labels: Option<HashMap<&str, &str>>,
 		show_logs: bool,
@@ -147,9 +145,7 @@ impl Builder {
 			.wait()
 			.expect("Failed to wait for docker build process.");
 
-		if !status.success() {
-			panic!("Failed to build docker image.");
-		}
+		assert!(status.success(), "Failed to build docker image.");
 	}
 }
 

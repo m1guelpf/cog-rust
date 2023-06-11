@@ -12,12 +12,12 @@ impl Config {
 		package
 			.metadata
 			.and_then(|meta| meta.as_table()?.get("cog").cloned())
-			.and_then(|config| Config::deserialize(config).ok())
+			.and_then(|config| Self::deserialize(config).ok())
 			.unwrap_or_default()
 	}
 
 	pub fn image_name(&self, image: Option<String>, cwd: &Path) -> String {
-		if let Some(image) = image.or(self.image.clone()) {
+		if let Some(image) = image.or_else(|| self.image.clone()) {
 			return image;
 		}
 
@@ -27,7 +27,7 @@ impl Config {
 			.to_str()
 			.unwrap()
 			.to_lowercase()
-			.replace(" ", "-")
+			.replace(' ', "-")
 			.replace(|c: char| !c.is_alphanumeric(), "")
 			.chars()
 			.take(30 - "cog-".len()) // Docker image names can only be 30 characters long.

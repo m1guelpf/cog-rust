@@ -1,8 +1,8 @@
 use crate::{docker::Builder, Context};
 
-pub async fn handle(ctx: Context, tag: Option<String>) {
+pub fn handle(ctx: Context, tag: Option<String>) {
 	let builder = Builder::new(ctx.cwd);
 
-	let image_name = builder.build(tag).await;
+	let image_name = builder.build(tag);
 	println!("Image built as {image_name}");
 }

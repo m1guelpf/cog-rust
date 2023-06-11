@@ -76,6 +76,6 @@ fn save_in_config(docker_config: &mut Value, registry: &str, username: &str, tok
 
 	auths.insert(
 		registry.to_string(),
-		serde_json::json!({ "auth": Base64.encode(format!("{}:{}", username, token)) }),
+		serde_json::json!({ "auth": Base64.encode(format!("{username}:{token}")) }),
 	);
 }
