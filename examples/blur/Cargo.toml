@@ -1,0 +1,22 @@
+[package]
+name = "cog-blur"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[package.metadata.cog]
+image = "blur-rs"
+
+[dependencies]
+serde = "1.0.163"
+image = "0.24.6"
+anyhow = "1.0.71"
+schemars = "0.8.12"
+async-trait = "0.1.68"
+cog-rust = { path = "../../lib" }
+tokio = { version = "1.28.2", features = ["full"] }
+
+# The image crate is extremely slow on debug builds, so we force a release build for better performance in development.
+# This does not affect the final release build.
+[profile.dev.package.image]
+opt-level = 3
