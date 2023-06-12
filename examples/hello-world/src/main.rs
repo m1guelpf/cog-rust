@@ -3,14 +3,14 @@ use async_trait::async_trait;
 use cog_rust::Cog;
 use schemars::JsonSchema;
 
-struct ExampleModel {
-	prefix: String,
-}
-
 #[derive(serde::Deserialize, JsonSchema)]
 struct ModelRequest {
 	/// Text to prefix with 'hello '
 	text: String,
+}
+
+struct ExampleModel {
+	prefix: String,
 }
 
 #[async_trait]

@@ -162,7 +162,7 @@ impl Prediction {
 					tracing::debug!("Shutdown requested. Cancelling running prediction: {:?}", self.id);
 					return;
 				},
-				output = self.runner.run(req.input.clone()) => {
+				output = self.runner.run(req.clone()) => {
 					tracing::debug!("Prediction complete: {:?}", self.id);
 
 					match output {
@@ -276,7 +276,7 @@ impl Drop for SyncGuard<'_> {
 pub struct Request<T = Value> {
 	pub webhook: Option<Url>,
 	pub webhook_event_filters: Option<Vec<WebhookEvent>>,
-	pub output_file_prefix: Option<String>,
+	pub output_file_prefix: Option<Url>,
 
 	pub input: T,
 }

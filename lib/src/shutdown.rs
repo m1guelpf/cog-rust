@@ -38,14 +38,14 @@ impl Agent {
 }
 
 impl Shutdown {
-	pub fn new() -> Result<Self, AlreadyCreatedError> {
+	pub fn new(await_explicit_shutdown: bool) -> Result<Self, AlreadyCreatedError> {
 		if (CREATED).swap(true, Ordering::SeqCst) {
 			tracing::error!("shutdown handler called twice");
 			return Err(AlreadyCreatedError);
 		}
 
 		let (tx, _) = broadcast::channel(1);
-		let handle = register_handlers();
+		let handle = register_handlers(await_explicit_shutdown);
 
 		let tx_for_handle = tx.clone();
 		tokio::spawn(async move {
@@ -83,7 +83,7 @@ impl Shutdown {
 	}
 }
 
-fn register_handlers() -> impl Future<Output = ()> {
+fn register_handlers(await_explicit_shutdown: bool) -> impl Future<Output = ()> {
 	let ctrl_c = async {
 		signal::ctrl_c()
 			.await
@@ -101,7 +101,11 @@ fn register_handlers() -> impl Future<Output = ()> {
 	#[cfg(not(unix))]
 	let terminate = std::future::pending::<()>();
 
-	async {
+	async move {
+		if await_explicit_shutdown {
+			return ctrl_c.await;
+		}
+
 		tokio::select! {
 			_ = ctrl_c => {
 				tracing::info!("Received Ctrl+C signal");

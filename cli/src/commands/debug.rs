@@ -15,7 +15,7 @@ fn get_binary_name(path: &Path) -> String {
 		.expect("Failed to read Cargo.toml. Make sure you are in the root of your Cog project.");
 
 	path.join("src/main.rs").metadata().expect(
-    "Couldn't find the project's entry point. Make sure you are in the root of your Cog project.",
+        "Couldn't find the project's entry point. Make sure you are in the root of your Cog project."
     );
 
 	cargo_toml

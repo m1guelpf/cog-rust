@@ -40,7 +40,9 @@ async fn create_prediction(
 		// ...and the request is for a different prediction, return an error.
 		if let Some(id) = id.clone() {
 			if Some(prediction_id.clone()) != Some(id.clone()) {
-				tracing::debug!("Trying to run a named prediction {id} while another prediction {prediction_id} is running");
+				tracing::debug!(
+					"Trying to run a named prediction {id} while another prediction {prediction_id} is running"
+				);
 				return Err(HTTPError::new("Already running a prediction")
 					.with_status(StatusCode::CONFLICT));
 			}

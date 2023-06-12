@@ -23,11 +23,11 @@ impl Builder {
 		);
 
 		cwd.join("src/main.rs").metadata().expect(
-        "Couldn't find the project's entry point. Make sure you are in the root of your Cog project.",
+            "Couldn't find the project's entry point. Make sure you are in the root of your Cog project."
         );
 
 		fs::File::create(cwd.join(".dockerignore")).and_then(|mut file| write!(file, "target")).expect(
-            "Failed to create .dockerignore file. Make sure you are in the root of your Cog project.",
+            "Failed to create .dockerignore file. Make sure you are in the root of your Cog project."
         );
 
 		let package = cargo_toml

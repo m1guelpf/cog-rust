@@ -14,18 +14,23 @@ use crate::{
 	prediction::{self, Prediction},
 	routes,
 	shutdown::Shutdown,
-	Cog,
+	Cli, Cog,
 };
 
-pub async fn start<T: Cog + 'static>() -> Result<()> {
-	let shutdown = Shutdown::new()?;
+#[allow(clippy::redundant_pub_crate)]
+pub(crate) async fn start<T: Cog + 'static>(args: Cli) -> Result<()> {
+	if let Some(url) = args.upload_url {
+		env::set_var("UPLOAD_URL", url.to_string());
+	}
+
+	let shutdown = Shutdown::new(args.await_explicit_shutdown)?;
 	let prediction = Prediction::setup::<T>(shutdown.clone());
 
 	let mut openapi = generate_schema::<T>();
 	let router = routes::handler().finish_api(&mut openapi);
 	tweak_generated_schema(&mut openapi);
 
-	if should_dump_schema() {
+	if args.dump_schema_and_exit {
 		println!("{}", serde_json::to_string(&openapi).unwrap());
 		shutdown.start();
 		return Ok(());
@@ -124,9 +129,4 @@ fn tweak_generated_schema(openapi: &mut OpenApi) {
 		),
 		Schema::new_ref("#/components/schemas/PredictionResponse".to_string()),
 	);
-}
-
-fn should_dump_schema() -> bool {
-	let argv: Vec<String> = env::args().collect();
-	argv.len() > 1 && argv[1] == "--dump-schema-and-exit"
 }
