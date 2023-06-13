@@ -5,7 +5,7 @@ use schemars::{schema_for, JsonSchema};
 use serde_json::Value;
 use std::{
 	env,
-	sync::{atomic::Ordering, Arc},
+	sync::{atomic::Ordering, Arc, Mutex},
 	time::{Duration, Instant},
 };
 use tokio::sync::{mpsc, oneshot};
@@ -66,7 +66,7 @@ impl Runner {
 				}
 				cog = T::setup() => {
 					match cog {
-						Ok(cog) => cog,
+						Ok(cog) => Arc::new(Mutex::new(cog)),
 						Err(error) => {
 							tracing::error!("Failed run setup(): {error}");
 							RUNNER_HEALTH.swap(Health::SetupFailed, Ordering::SeqCst);
@@ -94,6 +94,13 @@ impl Runner {
 				}
 			}
 
+			// Cog is not Sync, so we wrap it with a Mutex and this function to run it from an async context (and thus make it cancellable).
+			let run_prediction_async = |input| async {
+				let cog = cog.lock().unwrap();
+
+				cog.predict(input)
+			};
+
 			while let Some((tx, req)) = rx.recv().await {
 				tracing::debug!("Processing prediction: {req:?}");
 				RUNNER_HEALTH.swap(Health::Busy, Ordering::SeqCst);
@@ -110,8 +117,8 @@ impl Runner {
 					_ = cancel.recv_async() => {
 						let _ = tx.send(Err(Error::Canceled));
 						tracing::debug!("Prediction canceled");
-					}
-					response = cog.predict(input) => {
+					},
+					response = run_prediction_async(input)=> {
 						tracing::debug!("Prediction complete: {response:?}");
 						let _ = tx.send(match response {
 							Err(error) => Err(Error::Prediction(error)),

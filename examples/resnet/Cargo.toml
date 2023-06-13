@@ -1,0 +1,17 @@
+[package]
+name = "cog-resnet"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[package.metadata.cog]
+image = "resnet-rs"
+
+[dependencies]
+serde = "1.0.163"
+anyhow = "1.0.71"
+schemars = "0.8.12"
+async-trait = "0.1.68"
+cog-rust = { path = "../../lib" }
+tokio = { version = "1.28.2", features = ["full"] }
+tch = { version = "0.13.0", features = ["download-libtorch"] }

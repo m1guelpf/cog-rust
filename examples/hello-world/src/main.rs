@@ -24,7 +24,7 @@ impl Cog for ExampleModel {
 		})
 	}
 
-	async fn predict(&self, input: Self::Request) -> Result<Self::Response> {
+	fn predict(&self, input: Self::Request) -> Result<Self::Response> {
 		Ok(format!("{} {}", self.prefix, input.text))
 	}
 }

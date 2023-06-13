@@ -22,7 +22,7 @@ impl Cog for BlurModel {
 		Ok(Self {})
 	}
 
-	async fn predict(&self, input: Self::Request) -> Result<Self::Response> {
+	fn predict(&self, input: Self::Request) -> Result<Self::Response> {
 		let image = image::open(&input.image)?;
 		image.blur(input.blur.unwrap_or(5.0)).save(&input.image)?;
 
