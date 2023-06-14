@@ -6,13 +6,18 @@ Cog bundles Python models into a Docker image with a simple interface for loadin
 
 ## WIP
 
-This is a work in progress. It's not ready for use yet. Check back soon!
-
 To see the proposed DX, check the [hello-world example](examples/hello-world/src/main.rs).
 
 - [x] Basic web server
 - [x] Rust Cog interface
 - [x] Make everything work
 - [x] Request validation
-- [ ] Dockerfile
-- [ ] CLI?
+- [x] Dockerfile
+- [x] `cargo cog login`
+- [x] `cargo cog debug`
+- [x] `cargo cog build`
+- [x] `cargo cog push`
+- [ ] `cargo cog predict`
+- [x] deploys to Replicate work
+- [x] Run locally
+- [ ] Run on Replicate
