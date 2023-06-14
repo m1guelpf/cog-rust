@@ -59,6 +59,12 @@ impl Builder {
 			.output()
 			.expect("Failed to extract schema from image.");
 
+		assert!(
+			output.status.success(),
+			"Failed to extract schema from image: {}",
+			String::from_utf8(output.stdout).expect("Failed to parse error.")
+		);
+
 		let schema = String::from_utf8(output.stdout).expect("Failed to parse schema.");
 
 		Self::build_image(

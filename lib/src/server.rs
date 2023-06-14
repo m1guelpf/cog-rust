@@ -23,23 +23,23 @@ pub(crate) async fn start<T: Cog + 'static>(args: Cli) -> Result<()> {
 		env::set_var("UPLOAD_URL", url.to_string());
 	}
 
-	let shutdown = Shutdown::new(args.await_explicit_shutdown)?;
-	let prediction = Prediction::setup::<T>(shutdown.clone());
-
 	let mut openapi = generate_schema::<T>();
 	let router = routes::handler().finish_api(&mut openapi);
 	tweak_generated_schema(&mut openapi);
 
+	let shutdown = Shutdown::new(args.await_explicit_shutdown)?;
 	if args.dump_schema_and_exit {
 		println!("{}", serde_json::to_string(&openapi).unwrap());
 		shutdown.start();
 		return Ok(());
 	}
 
+	let prediction = Prediction::setup::<T>(shutdown.clone());
+
 	let router = router
-		.layer(prediction.extension())
+		.layer(Extension(openapi))
 		.layer(shutdown.extension())
-		.layer(Extension(openapi));
+		.layer(prediction.extension());
 
 	let addr = SocketAddr::from((
 		[0, 0, 0, 0],

@@ -1,21 +1,20 @@
 # syntax = docker/dockerfile:1.2
-FROM clux/muslrust:stable AS chef
-USER root
-RUN cargo install cargo-chef
+FROM lukemathwalker/cargo-chef:latest-rust-latest AS chef
 WORKDIR /src
 
 FROM chef AS planner
 COPY . .
-RUN cargo chef prepare --recipe-path recipe.json
+RUN cargo chef prepare --bin {:bin_name} --recipe-path recipe.json
 
 FROM chef AS builder
 COPY --from=planner /src/recipe.json recipe.json
-RUN cargo chef cook --release --target x86_64-unknown-linux-musl --recipe-path recipe.json
+RUN cargo chef cook --release
 COPY . .
-RUN cargo build --release --target x86_64-unknown-linux-musl --bin {:bin_name}
+RUN cargo build --release --bin {:bin_name}
 
-FROM alpine AS runtime
+FROM debian:bullseye-slim as runtime
 WORKDIR /src
-EXPOSE 5000
-COPY --from=builder /src/target/x86_64-unknown-linux-musl/release/{:bin_name} /usr/local/bin/cog
+RUN apt-get update && apt-get install -y libssl1.1 && apt clean && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /src/target/release/{:bin_name} /usr/local/bin/cog
 ENTRYPOINT ["/usr/local/bin/cog"]
+EXPOSE 5000

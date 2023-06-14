@@ -26,7 +26,7 @@ impl Cog for BlurModel {
 	type Response = HashMap<String, f64>;
 
 	async fn setup() -> Result<Self> {
-		let mut vs = VarStore::new(Device::cuda_if_available());
+		let mut vs = VarStore::new(Device::Cpu);
 		vs.load("weights/model.safetensors")?;
 		let model = Box::new(resnet50(&vs.root(), imagenet::CLASS_COUNT));
 
