@@ -2,6 +2,12 @@ use clap::Subcommand;
 
 use crate::Context;
 
+mod build;
+mod debug;
+mod login;
+mod predict;
+mod push;
+
 #[derive(Debug, Subcommand)]
 pub enum Command {
 	/// Log in to Replicate's Docker registry
@@ -29,21 +35,17 @@ pub enum Command {
 		/// A name for the built image
 		image: Option<String>,
 	},
-}
 
-mod build;
-mod debug;
-mod login;
-mod push;
+}
 
 pub async fn exec(ctx: Context, command: Command) {
 	match command {
-		Command::Debug => debug::handle(&ctx),
+		Command::Debug => debug::handle(ctx),
 		Command::Build { tag } => build::handle(ctx, tag),
-		Command::Push { image } => push::handle(ctx, image),
+		Command::Push { image } => push::handle(ctx, &image),
 		Command::Login {
-			token_stdin,
 			registry,
-		} => login::handle(ctx, token_stdin, registry).await,
+			token_stdin,
+		} => login::handle(token_stdin, registry).await,
 	};
 }

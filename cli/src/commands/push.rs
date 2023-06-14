@@ -1,16 +1,16 @@
-use crate::{docker::Builder, Context};
+use crate::Context;
 
-pub fn handle(ctx: Context, image: Option<String>) {
-	let builder = Builder::new(ctx.cwd);
+pub fn handle(ctx: Context, image: &Option<String>) {
+	let builder = ctx.into_builder();
 
 	if builder.config.image.as_ref().or(image.as_ref()).is_none() {
 		eprintln!("To push images, you must either set the 'image' option in the packages.metadata.cog of your Cargo.toml or pass an image name as an argument. For example, 'cargo cog push hotdog-detector'");
 		std::process::exit(1);
 	}
 
-	let image_name = builder.build(image);
+	let image_name = builder.build(image.clone());
+	builder.push(image);
 
-	Builder::push(&image_name);
 	println!("Image '{image_name}' pushed");
 
 	if image_name.starts_with("r8.im/") {

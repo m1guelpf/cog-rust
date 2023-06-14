@@ -1,6 +1,7 @@
-use std::path::Path;
-
+use cargo_toml::Manifest;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
+use std::path::Path;
 
 #[derive(Debug, Deserialize, Serialize, Default)]
 pub struct Config {
@@ -8,6 +9,17 @@ pub struct Config {
 }
 
 impl Config {
+	pub fn from_path(path: &Path) -> Self {
+		let cargo_toml = Manifest::from_path(path.join("Cargo.toml")).expect(
+			"Failed to read Cargo.toml. Make sure you are in the root of your Cog project.",
+		);
+
+		let package = cargo_toml
+			.package
+			.expect("Couldn't find the package section in Cargo.toml.");
+
+		Self::from_package(package)
+	}
 	pub fn from_package(package: cargo_toml::Package) -> Self {
 		package
 			.metadata
@@ -34,5 +46,16 @@ impl Config {
 			.collect::<String>();
 
 		format!("cog-{project_name}")
+	}
+
+	#[allow(clippy::unused_self)]
+	pub fn as_cog_config(&self) -> String {
+		serde_json::to_string(&json!({
+			"predict": "main.rs:CogModel",
+			"build": {
+				"python_version" : "N/A"
+			},
+		}))
+		.unwrap()
 	}
 }

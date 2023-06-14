@@ -2,7 +2,7 @@ use cargo_toml::Manifest;
 use map_macro::hash_map;
 use std::{
 	collections::HashMap,
-	fs,
+	fs::{self, File},
 	io::Write,
 	path::PathBuf,
 	process::{Command, Stdio},
@@ -14,6 +14,7 @@ pub struct Builder {
 	cwd: PathBuf,
 	pub config: Config,
 	binary_name: String,
+	cog_version: String,
 }
 
 impl Builder {
@@ -22,31 +23,42 @@ impl Builder {
 			"Failed to read Cargo.toml. Make sure you are in the root of your Cog project.",
 		);
 
-		cwd.join("src/main.rs").metadata().expect(
-            "Couldn't find the project's entry point. Make sure you are in the root of your Cog project."
-        );
-
-		fs::File::create(cwd.join(".dockerignore")).and_then(|mut file| write!(file, "target")).expect(
-            "Failed to create .dockerignore file. Make sure you are in the root of your Cog project."
-        );
-
 		let package = cargo_toml
 			.package
 			.expect("Couldn't find the package section in Cargo.toml.");
 
+		let cog_version = cargo_toml
+			.dependencies
+			.get("cog-rust")
+			.expect("Couldn't find cog-rust in your Cargo.toml")
+			.req()
+			.to_string();
+
+		assert!(cog_version != "*", "Couldn't resolve cog version. Make sure you're loading the package through the registry, not from git or a local path.");
+
 		Self {
 			cwd,
+			cog_version,
 			binary_name: package.name.clone(),
 			config: Config::from_package(package),
 		}
 	}
 
+	pub fn generate_dockerfile(&self) -> String {
+		include_str!("../templates/Dockerfile").replace("{:bin_name}", &self.binary_name)
+	}
+
 	pub fn build(&self, tag: Option<String>) -> String {
-		let dockerfile =
-			include_str!("../templates/Dockerfile").replace("{:bin_name}", &self.binary_name);
+		let dockerfile = self.generate_dockerfile();
+
+		File::create(self.cwd.join(".dockerignore")).and_then(|mut file| write!(file, "target")).expect(
+            "Failed to create .dockerignore file. Make sure you are in the root of your Cog project."
+        );
 
 		let image_name = self.config.image_name(tag, &self.cwd);
 		Self::build_image(&dockerfile, &image_name, None, true);
+
+		fs::remove_file(self.cwd.join(".dockerignore")).expect("Failed to clean up .dockerignore");
 
 		println!("Adding labels to image...");
 		let output = Command::new("docker")
@@ -62,7 +74,9 @@ impl Builder {
 		assert!(
 			output.status.success(),
 			"Failed to extract schema from image: {}",
-			String::from_utf8(output.stdout).expect("Failed to parse error.")
+			String::from_utf8(output.stdout).expect(
+				"Failed to parse output from command `docker run --rm -e RUST_LOG=cog_rust=error {image_name} --dump-schema-and-exit`."
+			)
 		);
 
 		let schema = String::from_utf8(output.stdout).expect("Failed to parse schema.");
@@ -71,14 +85,14 @@ impl Builder {
 			&format!("FROM {image_name}"),
 			&image_name,
 			Some(hash_map! {
-				"run.cog.version" => "dev",
 				"run.cog.has_init" => "true",
-				"org.cogmodel.cog_version" => "dev",
 				"run.cog.openapi_schema" => schema.trim(),
 				"org.cogmodel.openapi_schema" => schema.trim(),
+				"run.cog.config" => &self.config.as_cog_config(),
+				"org.cogmodel.config" => &self.config.as_cog_config(),
+				"run.cog.version" => &format!("{}-rust", self.cog_version),
+				"org.cogmodel.cog_version" => &format!("{}-rust", self.cog_version),
 				"org.cogmodel.deprecated" =>  "The org.cogmodel labels are deprecated. Use run.cog.",
-				"run.cog.config" => r#"{"build":{"python_version":"3.8"},"predict":"predict.py:Predictor"}"#,
-				"org.cogmodel.config" => r#"{"build":{"python_version":"3.8"},"predict":"predict.py:Predictor"}"#,
 			}),
 			false,
 		);
@@ -86,10 +100,15 @@ impl Builder {
 		image_name
 	}
 
-	pub fn push(image_name: &str) {
+	pub fn push(&self, image: &Option<String>) {
 		let status = Command::new("docker")
 			.arg("push")
-			.arg(image_name)
+			.arg(
+				image
+					.as_ref()
+					.or(self.config.image.as_ref())
+					.expect("Image name not specified"),
+			)
 			.stdout(Stdio::inherit())
 			.stderr(Stdio::inherit())
 			.status()
@@ -157,7 +176,6 @@ impl Builder {
 
 impl Drop for Builder {
 	fn drop(&mut self) {
-		fs::remove_file(self.cwd.join(".dockerignore"))
-			.expect("Failed to remove .dockerignore file. You may need to remove it manually.");
+		let _ = fs::remove_file(self.cwd.join(".dockerignore"));
 	}
 }

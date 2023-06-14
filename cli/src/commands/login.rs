@@ -5,10 +5,9 @@ use serde_json::Value;
 use crate::{
 	docker,
 	helpers::{load_from_stdin, wait_for_input},
-	Context,
 };
 
-pub async fn handle(_: Context, token_stdin: bool, registry: String) {
+pub async fn handle(token_stdin: bool, registry: String) {
 	let token = if token_stdin {
 		load_from_stdin()
 	} else {

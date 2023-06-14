@@ -2,7 +2,6 @@
 
 use anyhow::Result;
 use clap::Parser;
-use commands::Command;
 use std::path::PathBuf;
 
 mod commands;
@@ -14,7 +13,7 @@ mod helpers;
 #[command(author, version, about, long_about = None)]
 struct Cli {
 	#[command(subcommand)]
-	command: Command,
+	command: commands::Command,
 }
 
 #[derive(Debug)]
@@ -34,6 +33,11 @@ impl Context {
 		Ok(Self {
 			cwd: std::env::current_dir()?,
 		})
+	}
+
+	#[must_use]
+	pub fn into_builder(self) -> crate::docker::Builder {
+		crate::docker::Builder::new(self.cwd)
 	}
 }
 

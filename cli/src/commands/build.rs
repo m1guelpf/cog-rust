@@ -1,8 +1,6 @@
-use crate::{docker::Builder, Context};
+use crate::Context;
 
 pub fn handle(ctx: Context, tag: Option<String>) {
-	let builder = Builder::new(ctx.cwd);
-
-	let image_name = builder.build(tag);
+	let image_name = ctx.into_builder().build(tag);
 	println!("Image built as {image_name}");
 }
