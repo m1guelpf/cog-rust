@@ -53,11 +53,10 @@ impl Path {
 		let mime_type = Mime::from_str(tree_magic_mini::from_u8(&file_bytes))
 			.unwrap_or(mime_guess::mime::APPLICATION_OCTET_STREAM);
 		let file_ext = mime_guess::get_mime_extensions(&mime_type)
-			.expect("mime type has no extensions")
-			.last()
-			.unwrap();
+			.and_then(<[&str]>::last)
+			.map_or_else(String::new, |e| format!(".{e}"));
 
-		let file_path = temp_dir().join(format!("{}.{file_ext}", Uuid::new_v4()));
+		let file_path = temp_dir().join(format!("{}{file_ext}", Uuid::new_v4()));
 
 		std::fs::write(&file_path, file_bytes)?;
 		Ok(Self(file_path))

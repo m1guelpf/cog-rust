@@ -19,8 +19,3 @@ pub fn load_from_stdin() -> String {
 
 	input.trim().to_string()
 }
-
-#[must_use]
-pub fn is_m1_mac() -> bool {
-	std::env::consts::OS == "macos" && std::env::consts::ARCH == "aarch64"
-}

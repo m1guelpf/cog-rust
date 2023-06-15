@@ -73,7 +73,7 @@ fn generate_schema<T: Cog>() -> OpenApi {
 					external_docs: None,
 					json_schema: schema_with_properties::<T::Request>(&mut generator, |name, schema, i| {
 						schema.metadata().title = Some(titlecase::titlecase(&name));
-						schema.extensions.insert("x-order".to_string(), (i + 1).into());
+						schema.extensions.insert("x-order".to_string(), i.into());
 					})
 				},
 				"PredictionRequest".to_string() => openapi::SchemaObject {

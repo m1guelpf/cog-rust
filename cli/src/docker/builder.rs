@@ -8,7 +8,7 @@ use std::{
 	process::{Command, Stdio},
 };
 
-use crate::{config::Config, docker::Docker, helpers::is_m1_mac};
+use crate::{config::Config, docker::Docker};
 
 pub struct Builder {
 	cwd: PathBuf,
@@ -117,11 +117,7 @@ impl Builder {
 		show_logs: bool,
 	) {
 		let mut process = Command::new("docker")
-			.args(if is_m1_mac() {
-				vec!["buildx", "build", "--platform", "linux/amd64", "--load"]
-			} else {
-				vec!["build"]
-			})
+			.arg("build")
 			.args([
 				"--file",
 				"-",

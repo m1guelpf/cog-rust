@@ -1,8 +1,10 @@
 use base64::{engine::general_purpose::STANDARD as Base64, Engine};
+use dataurl::DataUrl;
 use map_macro::hash_map;
+use mime_guess::Mime;
 use schemars::schema::SchemaObject;
 use serde_json::Value;
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{collections::HashMap, fs, path::PathBuf, str::FromStr};
 
 use crate::{
 	docker::{Docker, Predictor},
@@ -30,13 +32,13 @@ pub async fn handle(
 	let mut predictor = Predictor::new(image, hash_map! { ctx.cwd => "/src".to_string() });
 
 	predictor.start().await;
-	predict_individual_inputs(&mut predictor, inputs, &output).await;
+	predict_individual_inputs(&mut predictor, inputs, output).await;
 }
 
 async fn predict_individual_inputs(
 	predictor: &mut Predictor,
 	inputs: Option<Vec<String>>,
-	output: &Option<PathBuf>,
+	mut output: Option<PathBuf>,
 ) {
 	println!("Running prediction...");
 	let schema = predictor.get_schema().unwrap();
@@ -55,36 +57,71 @@ async fn predict_individual_inputs(
 	})()
 	.unwrap();
 
-	let out = parse_response(&prediction.output.unwrap(), response_schema);
+	let out = parse_response(&prediction.output.unwrap(), response_schema, &mut output);
 
-	let Some(output) = output else {
-		println!("{out}");
-		return;
-	};
+	match out {
+		SerializedResponse::Text(text) => println!("{text}"),
+		SerializedResponse::Bytes(bytes) => {
+			let output = output.expect("No output file specified");
 
-	fs::write(output, out).expect("Failed to write output file");
-	println!("Written output to {}", output.display());
+			fs::write(&output, bytes).expect("Failed to write output file");
+			println!("Written output to {}", output.display());
+		},
+	}
 }
 
-fn parse_response(prediction: &Value, schema: &Value) -> String {
+#[derive(Debug)]
+enum SerializedResponse {
+	Text(String),
+	Bytes(Vec<u8>),
+}
+
+fn parse_response(
+	prediction: &Value,
+	schema: &Value,
+	output: &mut Option<PathBuf>,
+) -> SerializedResponse {
 	if schema.get("type") == Some(&Value::String("array".to_string())) {
 		todo!("array response not yet supported");
 	}
 
 	if schema.get("type") == Some(&Value::String("string".to_string()))
-		&& schema.get("format") == Some(&Value::String("url".to_string()))
+		&& schema.get("format") == Some(&Value::String("uri".to_string()))
 	{
-		todo!("url response not yet supported")
+		let url = prediction.as_str().unwrap();
+
+		if !url.starts_with("data:") {
+			return SerializedResponse::Text(url.to_string());
+		}
+
+		let dataurl = DataUrl::parse(url).expect("Failed to parse data URI");
+
+		if output.is_none() {
+			*output = Some(PathBuf::from(format!(
+				"output{}",
+				mime_guess::get_mime_extensions(
+					&Mime::from_str(dataurl.get_media_type())
+						.unwrap_or(mime_guess::mime::APPLICATION_OCTET_STREAM),
+				)
+				.and_then(<[&str]>::last)
+				.map(|e| format!(".{e}"))
+				.unwrap_or_default()
+			)));
+		}
+
+		return SerializedResponse::Bytes(dataurl.get_data().to_vec());
 	}
 
 	if schema.get("type") == Some(&Value::String("string".to_string())) {
-		return prediction
-			.as_str()
-			.expect("Expected prediction to be a string")
-			.to_string();
+		return SerializedResponse::Text(
+			prediction
+				.as_str()
+				.expect("Expected prediction to be a string")
+				.to_string(),
+		);
 	}
 
-	serde_json::to_string(&prediction).unwrap()
+	SerializedResponse::Text(serde_json::to_string(&prediction).unwrap())
 }
 
 fn parse_inputs(inputs: Vec<String>, schema: &SchemaObject) -> HashMap<String, String> {
@@ -126,8 +163,6 @@ fn parse_inputs(inputs: Vec<String>, schema: &SchemaObject) -> HashMap<String, S
 		);
 	}
 
-	dbg!(key_vals.clone());
-
 	key_vals
 }
 
@@ -144,7 +179,7 @@ pub fn get_first_input(schema: &SchemaObject) -> Option<String> {
             Value::Number(n) => n.as_i64(),
             _ => None,
         }) else {
-			continue;
+            continue;
 		};
 
 		if order == 0 {
