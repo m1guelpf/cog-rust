@@ -1,8 +1,8 @@
 [package]
 name = "cog-core"
+version = "0.1.0"
 description = "Core types and traits for rust-cog, a Rust toolkit for machine learning."
 readme = { workspace = true }
-version = { workspace = true }
 edition = { workspace = true }
 authors = { workspace = true }
 license = { workspace = true }

@@ -4,7 +4,6 @@ exclude = ["examples"]
 
 [workspace.package]
 edition = "2021"
-version = "0.1.0"
 readme = "README.md"
 license = "Apache-2.0"
 keywords = ["cog", "machine-learning"]
