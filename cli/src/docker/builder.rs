@@ -119,6 +119,8 @@ impl Builder {
 		let mut process = Command::new("docker")
 			.arg("build")
 			.args([
+				"--platform",
+				"linux/amd64",
 				"--file",
 				"-",
 				"--tag",

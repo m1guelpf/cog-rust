@@ -409,6 +409,8 @@ checksum = "2da6da31387c7e4ef160ffab6d5e7f00c42626fe39aea70a7b0f1773f7dd6c1b"
 [[package]]
 name = "cog-core"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9529660f89a9a50a7c294d1d6ce494cb25bebf40fc58a3d2662b4a6655c5a36"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -435,7 +437,9 @@ dependencies = [
 
 [[package]]
 name = "cog-rust"
-version = "0.1.0"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6f71474e4394adcbdecf9e5743d22cf1549b9cee323c2a16767fd983f7b98e4"
 dependencies = [
  "aide",
  "anyhow",
