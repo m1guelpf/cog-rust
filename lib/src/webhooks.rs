@@ -2,19 +2,11 @@ use std::env;
 
 use anyhow::Result;
 use axum::http::{HeaderMap, HeaderValue};
+use cog_core::http::WebhookEvent;
 use reqwest::Client;
-use schemars::JsonSchema;
 use url::Url;
 
-use crate::prediction::{Prediction, Request, Response as PredictionResponse};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, JsonSchema)]
-pub enum WebhookEvent {
-	Start,
-	Output,
-	Logs,
-	Completed,
-}
+use crate::prediction::{Prediction, ResponseHelpers};
 
 pub struct WebhookSender {
 	client: Client,
@@ -47,7 +39,7 @@ impl WebhookSender {
 
 		self.send(
 			request.webhook.clone().unwrap(),
-			PredictionResponse::starting(prediction.id.clone(), request),
+			cog_core::http::Response::starting(prediction.id.clone(), request),
 		)
 		.await?;
 
@@ -57,7 +49,7 @@ impl WebhookSender {
 	pub async fn finished(
 		&self,
 		prediction: &Prediction,
-		response: PredictionResponse,
+		response: cog_core::http::Response,
 	) -> Result<()> {
 		let request = prediction.request.clone().unwrap();
 		if !Self::should_send(&request, WebhookEvent::Completed) {
@@ -70,7 +62,7 @@ impl WebhookSender {
 		Ok(())
 	}
 
-	fn should_send(req: &Request, event: WebhookEvent) -> bool {
+	fn should_send(req: &cog_core::http::Request, event: WebhookEvent) -> bool {
 		req.webhook.is_some()
 			&& req
 				.webhook_event_filters
@@ -81,7 +73,7 @@ impl WebhookSender {
 	async fn send(
 		&self,
 		url: Url,
-		res: PredictionResponse,
+		res: cog_core::http::Response,
 	) -> Result<reqwest::Response, reqwest::Error> {
 		tracing::debug!("Sending webhook to {url}");
 		tracing::trace!("{res:?}");

@@ -4,6 +4,7 @@ use axum::{
 	response::{IntoResponse, Response},
 	Json,
 };
+use cog_core::http::ValidationError;
 use jsonschema::ErrorIterator;
 use serde_json::{json, Value};
 
@@ -39,16 +40,10 @@ impl OperationOutput for HTTPError {
 	type Inner = Self;
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct ValidationError {
-	msg: String,
-	loc: Vec<String>,
-}
-
-#[derive(Debug, Clone, thiserror::Error, serde::Serialize)]
+#[derive(Debug, Clone, thiserror::Error, serde::Deserialize, serde::Serialize)]
 #[error("Validation Errors")]
 pub struct ValidationErrorSet {
-	errors: Vec<ValidationError>,
+	pub errors: Vec<ValidationError>,
 }
 
 impl ValidationErrorSet {

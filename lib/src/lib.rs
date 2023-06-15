@@ -6,7 +6,8 @@ use tracing_subscriber::{
 	prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer,
 };
 
-pub use spec::{Cog, CogResponse, Path};
+pub use cog_core::{Cog, CogResponse};
+pub use spec::Path;
 
 mod errors;
 mod helpers;

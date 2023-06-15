@@ -1,14 +1,12 @@
 use aide::axum::{routing::post, ApiRouter};
 use axum::{extract::Path, http::StatusCode, Extension, TypedHeader};
 use axum_jsonschema::Json;
+use cog_core::http::Status;
 
 use crate::{
 	errors::HTTPError,
 	helpers::headers::Prefer,
-	prediction::{
-		Extension as ExtractPrediction, Request as PredictionRequest, Response as Prediction,
-		Status, SyncGuard,
-	},
+	prediction::{Extension as ExtractPrediction, ResponseHelpers, SyncGuard},
 };
 
 pub fn handler() -> ApiRouter {
@@ -25,8 +23,8 @@ async fn create_prediction(
 	id: Option<Path<String>>,
 	prefer: Option<TypedHeader<Prefer>>,
 	Extension(prediction): ExtractPrediction,
-	Json(req): Json<PredictionRequest>,
-) -> Result<(StatusCode, Json<Prediction>), HTTPError> {
+	Json(req): Json<cog_core::http::Request>,
+) -> Result<(StatusCode, Json<cog_core::http::Response>), HTTPError> {
 	let id = id.map(|id| id.0);
 	let respond_async = prefer
 		.map(|prefer| prefer.0)
@@ -94,7 +92,10 @@ async fn create_prediction(
 		tracing::debug!("Asynchronous prediction complete: {thread_id:?}");
 	});
 
-	Ok((StatusCode::ACCEPTED, Json(Prediction::starting(id, req))))
+	Ok((
+		StatusCode::ACCEPTED,
+		Json(cog_core::http::Response::starting(id, req)),
+	))
 }
 
 async fn cancel_prediction(

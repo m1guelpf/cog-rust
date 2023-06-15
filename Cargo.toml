@@ -1,5 +1,5 @@
 [workspace]
-members = ["lib", "cli"]
+members = ["core", "lib", "cli"]
 exclude = ["examples"]
 
 [workspace.package]

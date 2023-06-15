@@ -8,7 +8,7 @@ use std::{
 	process::{Command, Stdio},
 };
 
-use crate::{config::Config, helpers::is_m1_mac};
+use crate::{config::Config, docker::Docker, helpers::is_m1_mac};
 
 pub struct Builder {
 	cwd: PathBuf,
@@ -101,20 +101,13 @@ impl Builder {
 	}
 
 	pub fn push(&self, image: &Option<String>) {
-		let status = Command::new("docker")
-			.arg("push")
-			.arg(
-				image
-					.as_ref()
-					.or(self.config.image.as_ref())
-					.expect("Image name not specified"),
-			)
-			.stdout(Stdio::inherit())
-			.stderr(Stdio::inherit())
-			.status()
-			.expect("Failed to push image.");
-
-		assert!(status.success(), "Failed to push image.");
+		Docker::push(
+			image
+				.as_ref()
+				.or(self.config.image.as_ref())
+				.expect("Image name not specified"),
+		)
+		.expect("Failed to push image.");
 	}
 
 	fn build_image(

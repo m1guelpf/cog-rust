@@ -1,51 +1,21 @@
 use anyhow::Result;
 use async_trait::async_trait;
+use cog_core::CogResponse;
 use core::fmt::Debug;
+use mime_guess::Mime;
 use reqwest::Client;
 use schemars::{gen::SchemaGenerator, schema::Schema, JsonSchema};
-use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use std::{
 	env::{self, temp_dir},
 	fs::File,
 	path::PathBuf,
+	str::FromStr,
 };
 use url::Url;
 use uuid::Uuid;
 
-use crate::{
-	helpers::{base64_decode, base64_encode},
-	prediction,
-};
-
-#[async_trait]
-pub trait Cog: Sized + Send {
-	type Request: DeserializeOwned + JsonSchema + Send;
-	type Response: CogResponse + Debug + JsonSchema;
-
-	/// Setup the cog
-	///
-	/// # Errors
-	///
-	/// Returns an error if setup fails.
-	async fn setup() -> Result<Self>;
-
-	/// Run a prediction
-	fn predict(&self, input: Self::Request) -> Result<Self::Response>;
-}
-
-/// A response from a cog
-#[async_trait]
-pub trait CogResponse: Send {
-	async fn into_response(self, upload_url: prediction::Request) -> Result<Value>;
-}
-
-#[async_trait]
-impl<T: Serialize + Send> CogResponse for T {
-	async fn into_response(self, _: prediction::Request) -> Result<Value> {
-		Ok(serde_json::to_value(self)?)
-	}
-}
+use crate::helpers::{base64_decode, base64_encode};
 
 #[derive(Debug)]
 pub struct Path(PathBuf);
@@ -80,9 +50,14 @@ impl Path {
 		let data = url.path().split(',').last().unwrap_or_else(|| url.path());
 
 		let file_bytes = base64_decode(data)?;
-		let mime_type = tree_magic_mini::from_u8(&file_bytes);
+		let mime_type = Mime::from_str(tree_magic_mini::from_u8(&file_bytes))
+			.unwrap_or(mime_guess::mime::APPLICATION_OCTET_STREAM);
+		let file_ext = mime_guess::get_mime_extensions(&mime_type)
+			.expect("mime type has no extensions")
+			.last()
+			.unwrap();
 
-		let file_path = temp_dir().join(format!("{}.{mime_type}", Uuid::new_v4()));
+		let file_path = temp_dir().join(format!("{}.{file_ext}", Uuid::new_v4()));
 
 		std::fs::write(&file_path, file_bytes)?;
 		Ok(Self(file_path))
@@ -137,7 +112,7 @@ impl Path {
 
 #[async_trait]
 impl CogResponse for Path {
-	async fn into_response(self, req: prediction::Request) -> Result<Value> {
+	async fn into_response(self, req: cog_core::http::Request) -> Result<Value> {
 		if let Some(upload_url) = req.output_file_prefix.or_else(|| {
 			env::var("UPLOAD_URL")
 				.map(|url| url.parse().ok())

@@ -11,7 +11,7 @@ use schemars::{
 
 use crate::{
 	helpers::openapi::{replace_request_schema, replace_response_schema, schema_with_properties},
-	prediction::{self, Prediction},
+	prediction::Prediction,
 	routes,
 	shutdown::Shutdown,
 	Cli, Cog,
@@ -79,7 +79,7 @@ fn generate_schema<T: Cog>() -> OpenApi {
 				"PredictionRequest".to_string() => openapi::SchemaObject {
 					example: None,
 					external_docs: None,
-					json_schema: schema_with_properties::<prediction::Request>(&mut generator, |name, schema, _| {
+					json_schema: schema_with_properties::<cog_core::http::Request>(&mut generator, |name, schema, _| {
 						if name == "input" {
 							schema.reference = Some("#/components/schemas/Input".to_string());
 						}
@@ -93,7 +93,7 @@ fn generate_schema<T: Cog>() -> OpenApi {
 				"PredictionResponse".to_string() => openapi::SchemaObject {
 					example: None,
 					external_docs: None,
-					json_schema: schema_with_properties::<prediction::Response>(&mut generator, |name, schema, _| {
+					json_schema: schema_with_properties::<cog_core::http::Response>(&mut generator, |name, schema, _| {
 						if name == "input" {
 							schema.reference = Some("#/components/schemas/Input".to_string());
 						}

@@ -1,4 +1,5 @@
 use clap::Subcommand;
+use std::path::PathBuf;
 
 use crate::Context;
 
@@ -36,6 +37,21 @@ pub enum Command {
 		image: Option<String>,
 	},
 
+	/// Run a prediction.
+	Predict {
+		/// Run the prediction on this Docker image (it must be an image that has been built by Cog).
+		///
+		/// Will build and run the model in the current directory if left empty
+		image: Option<String>,
+
+		/// Output path
+		#[clap(short)]
+		output: Option<PathBuf>,
+
+		/// Inputs, in the form name=value. if value is prefixed with @, then it is read from a file on disk. E.g. -i path=@image.jpg
+		#[clap(short)]
+		input: Option<Vec<String>>,
+	},
 }
 
 pub async fn exec(ctx: Context, command: Command) {
@@ -47,5 +63,10 @@ pub async fn exec(ctx: Context, command: Command) {
 			registry,
 			token_stdin,
 		} => login::handle(token_stdin, registry).await,
+		Command::Predict {
+			image,
+			output,
+			input,
+		} => predict::handle(ctx, image, input, output).await,
 	};
 }

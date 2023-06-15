@@ -1,5 +1,6 @@
 use anyhow::Result;
 use atomic_enum::atomic_enum;
+use cog_core::{Cog, CogResponse};
 use jsonschema::JSONSchema;
 use schemars::{schema_for, JsonSchema};
 use serde_json::Value;
@@ -10,7 +11,7 @@ use std::{
 };
 use tokio::sync::{mpsc, oneshot};
 
-use crate::{errors::ValidationErrorSet, prediction, shutdown::Shutdown, spec::Cog, CogResponse};
+use crate::{errors::ValidationErrorSet, shutdown::Shutdown};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -45,14 +46,14 @@ type ResponseSender = oneshot::Sender<Result<(Value, Duration), Error>>;
 #[derive(Clone)]
 pub struct Runner {
 	schema: Arc<JSONSchema>,
-	sender: mpsc::Sender<(ResponseSender, prediction::Request)>,
+	sender: mpsc::Sender<(ResponseSender, cog_core::http::Request)>,
 }
 
 impl Runner {
 	pub fn new<T: Cog + 'static>(shutdown: Shutdown, cancel: flume::Receiver<()>) -> Self {
 		RUNNER_HEALTH.swap(Health::Starting, Ordering::SeqCst);
 
-		let (sender, mut rx) = mpsc::channel::<(ResponseSender, prediction::Request)>(1);
+		let (sender, mut rx) = mpsc::channel::<(ResponseSender, cog_core::http::Request)>(1);
 
 		let handle_shutdown = shutdown.clone();
 		let handle = tokio::spawn(async move {
@@ -157,7 +158,7 @@ impl Runner {
 		Ok(())
 	}
 
-	pub async fn run(&self, req: prediction::Request) -> Result<(Value, Duration), Error> {
+	pub async fn run(&self, req: cog_core::http::Request) -> Result<(Value, Duration), Error> {
 		if !matches!(RUNNER_HEALTH.load(Ordering::SeqCst), Health::Ready) {
 			tracing::debug!("Failed to run prediction: runner is busy");
 			return Err(Error::Busy);

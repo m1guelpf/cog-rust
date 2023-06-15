@@ -2,6 +2,7 @@
 
 use anyhow::Result;
 use clap::Parser;
+use docker::Docker;
 use std::path::PathBuf;
 
 mod commands;
@@ -16,7 +17,7 @@ struct Cli {
 	command: commands::Command,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Context {
 	pub cwd: PathBuf,
 }
@@ -28,7 +29,7 @@ impl Context {
 	///
 	/// This function will return an error if the current working directory cannot be determined.
 	pub fn new() -> Result<Self> {
-		docker::ensure_docker();
+		Docker::check_connection()?;
 
 		Ok(Self {
 			cwd: std::env::current_dir()?,

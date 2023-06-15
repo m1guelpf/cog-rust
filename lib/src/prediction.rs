@@ -1,38 +1,21 @@
+use chrono::{DateTime, Utc};
+use cog_core::http::{Request, Response, Status};
+use map_macro::hash_map;
+use serde_json::Value;
 use std::{
-	collections::HashMap,
 	future::Future,
 	sync::{atomic::Ordering, Arc},
 	time::Duration,
 };
-
-use chrono::{DateTime, Utc};
-use map_macro::hash_map;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use tokio::sync::RwLock;
-use url::Url;
 
 use crate::{
 	errors::ValidationErrorSet,
 	runner::{Error as RunnerError, Health, Runner, RUNNER_HEALTH},
 	shutdown::Shutdown,
-	webhooks::{WebhookEvent, WebhookSender},
+	webhooks::WebhookSender,
 	Cog,
 };
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "lowercase")]
-pub enum Status {
-	#[serde(skip)]
-	Idle,
-
-	Failed,
-	Starting,
-	Canceled,
-	Succeeded,
-	Processing,
-}
 
 pub type Extension = axum::Extension<Arc<RwLock<Prediction>>>;
 
@@ -272,36 +255,26 @@ impl Drop for SyncGuard<'_> {
 	}
 }
 
-#[derive(Debug, Clone, serde::Deserialize, JsonSchema)]
-pub struct Request<T = Value> {
-	pub webhook: Option<Url>,
-	pub webhook_event_filters: Option<Vec<WebhookEvent>>,
-	pub output_file_prefix: Option<Url>,
-
-	pub input: T,
+pub trait ResponseHelpers {
+	fn starting(id: Option<String>, req: Request) -> Self;
+	fn success(
+		id: Option<String>,
+		req: Request,
+		output: Value,
+		predict_time: Duration,
+		started_at: DateTime<Utc>,
+	) -> Self;
+	fn error(
+		id: Option<String>,
+		req: Request,
+		error: &RunnerError,
+		started_at: DateTime<Utc>,
+	) -> Self;
+	fn canceled(id: Option<String>, req: Request, started_at: DateTime<Utc>) -> Self;
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct Response<Req = Value, Res = Value> {
-	pub input: Option<Req>,
-	pub output: Option<Res>,
-
-	pub id: Option<String>,
-	pub version: Option<String>,
-
-	pub created_at: Option<DateTime<Utc>>,
-	pub started_at: Option<DateTime<Utc>>,
-	pub completed_at: Option<DateTime<Utc>>,
-
-	pub logs: String,
-	pub status: Status,
-	pub error: Option<String>,
-
-	metrics: Option<HashMap<String, Value>>,
-}
-
-impl Response {
-	pub fn success(
+impl ResponseHelpers for Response {
+	fn success(
 		id: Option<String>,
 		req: Request,
 		output: Value,
@@ -321,7 +294,7 @@ impl Response {
 			..Self::default()
 		}
 	}
-	pub fn error(
+	fn error(
 		id: Option<String>,
 		req: Request,
 		error: &RunnerError,
@@ -337,7 +310,7 @@ impl Response {
 		}
 	}
 
-	pub fn starting(id: Option<String>, req: Request) -> Self {
+	fn starting(id: Option<String>, req: Request) -> Self {
 		Self {
 			id,
 			input: Some(req.input),
@@ -347,31 +320,13 @@ impl Response {
 		}
 	}
 
-	pub fn canceled(id: Option<String>, req: Request, started_at: DateTime<Utc>) -> Self {
+	fn canceled(id: Option<String>, req: Request, started_at: DateTime<Utc>) -> Self {
 		Self {
 			id,
 			input: Some(req.input),
 			status: Status::Canceled,
 			started_at: Some(started_at),
 			..Self::default()
-		}
-	}
-}
-
-impl Default for Response {
-	fn default() -> Self {
-		Self {
-			id: None,
-			error: None,
-			input: None,
-			output: None,
-			metrics: None,
-			version: None,
-			created_at: None,
-			logs: String::new(),
-			status: Status::Starting,
-			started_at: Utc::now().into(),
-			completed_at: Utc::now().into(),
 		}
 	}
 }
