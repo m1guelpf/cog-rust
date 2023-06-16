@@ -1,5 +1,6 @@
 mod auth;
 mod builder;
+mod dockerfile;
 pub mod predictor;
 
 use std::{

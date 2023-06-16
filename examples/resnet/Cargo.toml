@@ -3,6 +3,7 @@ name = "cog-resnet"
 version = "0.0.0"
 edition = "2021"
 publish = false
+authors = ["Miguel Piedrafita <soy@miguelpiedrafita.com>"]
 
 [package.metadata.cog]
 image = "resnet-rs"

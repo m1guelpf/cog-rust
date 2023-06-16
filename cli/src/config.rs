@@ -1,4 +1,4 @@
-use cargo_toml::Manifest;
+use cargo_metadata::{MetadataCommand, Package};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::path::Path;
@@ -10,20 +10,23 @@ pub struct Config {
 
 impl Config {
 	pub fn from_path(path: &Path) -> Self {
-		let cargo_toml = Manifest::from_path(path.join("Cargo.toml")).expect(
-			"Failed to read Cargo.toml. Make sure you are in the root of your Cog project.",
-		);
+		let cargo_toml = MetadataCommand::new()
+			.manifest_path(path.join("Cargo.toml"))
+			.exec()
+			.expect(
+				"Failed to read Cargo.toml. Make sure you are in the root of your Cog project.",
+			);
 
 		let package = cargo_toml
-			.package
+			.root_package()
 			.expect("Couldn't find the package section in Cargo.toml.");
 
 		Self::from_package(package)
 	}
-	pub fn from_package(package: cargo_toml::Package) -> Self {
+	pub fn from_package(package: &Package) -> Self {
 		package
 			.metadata
-			.and_then(|meta| meta.as_table()?.get("cog").cloned())
+			.get("cog")
 			.and_then(|config| Self::deserialize(config).ok())
 			.unwrap_or_default()
 	}
