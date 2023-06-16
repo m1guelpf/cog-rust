@@ -1,9 +1,3 @@
-use std::{
-	collections::HashMap,
-	path::PathBuf,
-	time::{Duration, Instant},
-};
-
 use anyhow::{bail, Context};
 use cog_core::http::{HTTPValidationError, Response};
 use indoc::formatdoc;
@@ -11,6 +5,10 @@ use map_macro::hash_map;
 use reqwest::StatusCode;
 use schemars::schema::SchemaObject;
 use serde_json::{json, Value};
+use std::{
+	collections::HashMap,
+	time::{Duration, Instant},
+};
 use tokio::time::sleep;
 
 use super::RunOptions;
@@ -21,14 +19,12 @@ pub struct Predictor {
 	image: String,
 	port: Option<u16>,
 	container_id: Option<String>,
-	volumes: HashMap<PathBuf, String>,
 }
 
 impl Predictor {
-	pub const fn new(image: String, volumes: HashMap<PathBuf, String>) -> Self {
+	pub const fn new(image: String) -> Self {
 		Self {
 			image,
-			volumes,
 			port: None,
 			container_id: None,
 		}
@@ -58,7 +54,6 @@ impl Predictor {
 		let container_id = Docker::run(RunOptions {
 			detach: true,
 			image: self.image.clone(),
-			volumes: self.volumes.clone(),
 			ports: hash_map! { 0 => 5000 },
 			env: vec!["RUST_LOG=error".to_string()],
 			..RunOptions::default()

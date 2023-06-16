@@ -11,7 +11,6 @@ categories = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-toml = "0.7.4"
 dirs = "5.0.1"
 indoc = "2.0.1"
 serde = "1.0.164"
@@ -21,9 +20,9 @@ map-macro = "0.2.6"
 schemars = "0.8.12"
 thiserror = "1.0.40"
 mime_guess = "2.0.4"
-cargo_toml = "0.15.3"
 serde_json = "1.0.96"
 webbrowser = "0.8.10"
+cargo_metadata = "0.15.4"
 cog-core = { path = "../core", version = "0.1.0" }
 clap = { version = "4.3.3", features = ["derive"] }
 tokio = { version = "1.28.2", features = ["full"] }

@@ -1,4 +1,4 @@
-use cargo_toml::Manifest;
+use cargo_metadata::{MetadataCommand, Package};
 use map_macro::hash_map;
 use std::{
 	collections::HashMap,
@@ -8,30 +8,41 @@ use std::{
 	process::{Command, Stdio},
 };
 
+use super::dockerfile::{Dockerfile, DockerfileExt};
 use crate::{config::Config, docker::Docker};
 
 pub struct Builder {
 	cwd: PathBuf,
+	package: Package,
 	pub config: Config,
-	binary_name: String,
 	cog_version: String,
+	deps: Vec<Package>,
 }
 
 impl Builder {
 	pub fn new(cwd: PathBuf) -> Self {
-		let cargo_toml = Manifest::from_path(cwd.join("Cargo.toml")).expect(
-			"Failed to read Cargo.toml. Make sure you are in the root of your Cog project.",
-		);
+		let cargo_metadata = MetadataCommand::new()
+			.manifest_path(cwd.join("Cargo.toml"))
+			.exec()
+			.expect(
+				"Failed to read Cargo.toml. Make sure you are in the root of your Cog project.",
+			);
 
-		let package = cargo_toml
-			.package
+		let package = cargo_metadata
+			.root_package()
 			.expect("Couldn't find the package section in Cargo.toml.");
 
-		let cog_version = cargo_toml
+		assert!(
+			!package.authors.is_empty(),
+			"You must specify at least one author in Cargo.toml"
+		);
+
+		let cog_version = package
 			.dependencies
-			.get("cog-rust")
+			.iter()
+			.find(|dep| dep.name == "cog-rust")
 			.expect("Couldn't find cog-rust in your Cargo.toml")
-			.req()
+			.req
 			.to_string();
 
 		assert!(cog_version != "*", "Couldn't resolve cog version. Make sure you're loading the package through the registry, not from git or a local path.");
@@ -39,13 +50,39 @@ impl Builder {
 		Self {
 			cwd,
 			cog_version,
-			binary_name: package.name.clone(),
+			package: package.clone(),
+			deps: cargo_metadata.packages.clone(),
 			config: Config::from_package(package),
 		}
 	}
 
 	pub fn generate_dockerfile(&self) -> String {
-		include_str!("../templates/Dockerfile").replace("{:bin_name}", &self.binary_name)
+		let torchlib_cpu = || {
+			self.deps.iter().find(|dep| dep.name == "torch-sys")?;
+
+			Some(Dockerfile::new().run_multiple(&[
+                Command::new("curl")
+                    .args(["-sSL", "https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.0.1%2Bcpu.zip", "-o libtorch.zip"]),
+                Command::new("unzip").arg("libtorch.zip"),
+                Command::new("rm").arg("libtorch.zip"),
+                Command::new("cp").arg("libtorch/lib/*").arg("/src/lib")
+            ]).env("LIBTORCH", "/src/libtorch"))
+		};
+
+		let weights_dir = || {
+			if self.cwd.join("weights").exists() {
+				Some(Dockerfile::new().copy("weights/", "/src/weights/"))
+			} else {
+				None
+			}
+		};
+
+		include_str!("../templates/Dockerfile")
+			.to_string()
+			.for_bin(&self.package.name)
+			.handler("before_build", torchlib_cpu)
+			.handler("before_runtime", weights_dir)
+			.build()
 	}
 
 	pub fn build(&self, tag: Option<String>) -> String {
@@ -74,7 +111,7 @@ impl Builder {
 		assert!(
 			output.status.success(),
 			"Failed to extract schema from image: {}",
-			String::from_utf8(output.stdout).expect(
+			String::from_utf8(output.stderr).expect(
 				"Failed to parse output from command `docker run --rm -e RUST_LOG=cog_rust=error {image_name} --dump-schema-and-exit`."
 			)
 		);
@@ -89,6 +126,7 @@ impl Builder {
 				"run.cog.openapi_schema" => schema.trim(),
 				"org.cogmodel.openapi_schema" => schema.trim(),
 				"run.cog.config" => &self.config.as_cog_config(),
+				"rs.cog.authors" => &self.package.authors.join(", "),
 				"org.cogmodel.config" => &self.config.as_cog_config(),
 				"run.cog.version" => &format!("{}-rust", self.cog_version),
 				"org.cogmodel.cog_version" => &format!("{}-rust", self.cog_version),
@@ -121,12 +159,12 @@ impl Builder {
 			.args([
 				"--platform",
 				"linux/amd64",
-				"--file",
-				"-",
 				"--tag",
 				image_name,
 				"--build-arg",
 				"BUILDKIT_INLINE_CACHE=1",
+				"--file",
+				"-",
 			])
 			.args(
 				labels
@@ -136,6 +174,7 @@ impl Builder {
 			)
 			.arg(".")
 			.env("DOCKER_BUILDKIT", "1")
+			.env("DOCKER_DEFAULT_PLATFORM", "linux/amd64")
 			.stdin(Stdio::piped())
 			.stderr(if show_logs {
 				Stdio::inherit()

@@ -1,6 +1,5 @@
 use base64::{engine::general_purpose::STANDARD as Base64, Engine};
 use dataurl::DataUrl;
-use map_macro::hash_map;
 use mime_guess::Mime;
 use schemars::schema::SchemaObject;
 use serde_json::Value;
@@ -29,7 +28,7 @@ pub async fn handle(
 	);
 
 	println!("Starting Docker image {image} and running setup()...");
-	let mut predictor = Predictor::new(image, hash_map! { ctx.cwd => "/src".to_string() });
+	let mut predictor = Predictor::new(image);
 
 	predictor.start().await;
 	predict_individual_inputs(&mut predictor, inputs, output).await;
