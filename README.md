@@ -17,7 +17,7 @@ To see the proposed DX, check the [hello-world example](examples/hello-world/src
 - [x] `cargo cog debug`
 - [x] `cargo cog build`
 - [x] `cargo cog push`
-- [ ] `cargo cog predict`
+- [x] `cargo cog predict` (for everything except arrays)
 - [x] deploys to Replicate work
 - [x] Run locally
 - [ ] Run on Replicate
