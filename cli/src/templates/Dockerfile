@@ -25,6 +25,6 @@ COPY --from=builder /src/lib/* /lib/x86_64-linux-gnu/
 COPY --from=builder /src/target/{:bin_name}.deb /src/{:bin_name}.deb
 #SLOT before_runtime
 RUN apt-get install -y /src/{:bin_name}.deb && rm /src/{:bin_name}.deb
-ENTRYPOINT ["/usr/bin/{:bin_name}"]
 EXPOSE 5000
+CMD ["/usr/bin/{:bin_name}"]
 #SLOT after_runtime

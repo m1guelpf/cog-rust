@@ -15,7 +15,7 @@ pub struct Builder {
 	cwd: PathBuf,
 	package: Package,
 	pub config: Config,
-	cog_version: String,
+	_cog_version: String,
 	deps: Vec<Package>,
 }
 
@@ -49,8 +49,8 @@ impl Builder {
 
 		Self {
 			cwd,
-			cog_version,
 			package: package.clone(),
+			_cog_version: cog_version,
 			deps: cargo_metadata.packages.clone(),
 			config: Config::from_package(package),
 		}
@@ -77,11 +77,36 @@ impl Builder {
 			}
 		};
 
+		let replicate_hack = || {
+			Some(
+				Dockerfile::new()
+					.run_multiple(&[
+						Command::new("echo")
+							.arg(r##""#!/bin/bash\nexit 0""##)
+							.arg(">")
+							.arg("/usr/local/bin/pip"),
+						Command::new("chmod").arg("+x").arg("/usr/local/bin/pip"),
+						Command::new("echo")
+							.arg(format!(
+								// Replicate runs `python -m cog.server.http --other-args*` and we only care about the other args
+								"\"#!/bin/bash\\nshift 3; /usr/bin/{} \"$@\"\"",
+								self.package.name
+							))
+							.arg(">")
+							.arg("/usr/local/bin/python"),
+						Command::new("chmod").arg("+x").arg("/usr/local/bin/python"),
+					])
+                    // Replicate also doesn't provide a way to set the log level, so we have to do it manually
+					.env("RUST_LOG", r#""cog_rust=trace""#),
+			)
+		};
+
 		include_str!("../templates/Dockerfile")
 			.to_string()
 			.for_bin(&self.package.name)
 			.handler("before_build", torchlib_cpu)
 			.handler("before_runtime", weights_dir)
+			.handler("after_runtime", replicate_hack)
 			.build()
 	}
 
@@ -104,6 +129,7 @@ impl Builder {
 			.arg("-e")
 			.arg("RUST_LOG=cog_rust=error")
 			.arg(&image_name)
+			.arg(format!("/usr/bin/{}", self.package.name))
 			.arg("--dump-schema-and-exit")
 			.output()
 			.expect("Failed to extract schema from image.");
@@ -123,13 +149,14 @@ impl Builder {
 			&image_name,
 			Some(hash_map! {
 				"run.cog.has_init" => "true",
+				// Seems like Replicate will only allow `cog` versions, so we hardcode it here
+				"run.cog.version" => "0.7.2",
+				"org.cogmodel.cog_version" => "0.7.2",
 				"run.cog.openapi_schema" => schema.trim(),
 				"org.cogmodel.openapi_schema" => schema.trim(),
 				"run.cog.config" => &self.config.as_cog_config(),
 				"rs.cog.authors" => &self.package.authors.join(", "),
 				"org.cogmodel.config" => &self.config.as_cog_config(),
-				"run.cog.version" => &format!("{}-rust", self.cog_version),
-				"org.cogmodel.cog_version" => &format!("{}-rust", self.cog_version),
 				"org.cogmodel.deprecated" =>  "The org.cogmodel labels are deprecated. Use run.cog.",
 			}),
 			false,
