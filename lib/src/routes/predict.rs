@@ -31,6 +31,13 @@ async fn create_prediction(
 		.unwrap_or_default()
 		.has("respond-async");
 
+	tracing::debug!(
+		"Received {}prediction request{}.",
+		if respond_async { "async " } else { "" },
+		id.as_ref()
+			.map_or(String::new(), |id| format!(" with id {id}")),
+	);
+
 	let r_prediction = prediction.read().await;
 
 	// If a named prediction is already running...

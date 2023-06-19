@@ -78,6 +78,7 @@ impl Runner {
 				}
 			};
 
+			tracing::debug!("setup() finished. Cog is ready to accept predictions.");
 			RUNNER_HEALTH.swap(Health::Ready, Ordering::SeqCst);
 			if env::var("KUBERNETES_SERVICE_HOST").is_ok() {
 				if let Err(err) = tokio::fs::create_dir_all("/var/run/cog").await {

@@ -7,6 +7,7 @@ use aide::axum::{
 use axum::Extension;
 use axum_jsonschema::Json;
 use chrono::Utc;
+use cog_core::http::Status;
 use schemars::JsonSchema;
 
 use crate::{
@@ -42,7 +43,7 @@ pub struct HealthCheckSetup {
 	/// Setup logs
 	pub logs: String,
 	/// Setup status
-	pub status: String,
+	pub status: Status,
 	/// Setup started time
 	pub started_at: String,
 	/// Setup completed time
@@ -59,11 +60,17 @@ pub struct HealthCheck {
 
 #[allow(clippy::unused_async)]
 pub async fn health_check() -> Json<HealthCheck> {
+	let status = RUNNER_HEALTH.load(Ordering::SeqCst);
+
 	Json(HealthCheck {
-		status: RUNNER_HEALTH.load(Ordering::SeqCst),
+		status,
 		setup: HealthCheckSetup {
 			logs: String::new(),
-			status: "succeeded".to_string(),
+			status: match status {
+				Health::Unknown | Health::Starting => Status::Starting,
+				Health::SetupFailed => Status::Failed,
+				_ => Status::Succeeded,
+			},
 			started_at: Utc::now().to_rfc3339(),
 			completed_at: Utc::now().to_rfc3339(),
 		},
