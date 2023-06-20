@@ -456,7 +456,7 @@ dependencies = [
 
 [[package]]
 name = "cog-rust"
-version = "1.0.4"
+version = "1.0.5"
 dependencies = [
  "aide",
  "anyhow",

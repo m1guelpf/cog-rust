@@ -1,4 +1,7 @@
-use aide::axum::{routing::post, ApiRouter};
+use aide::axum::{
+	routing::{post, put},
+	ApiRouter,
+};
 use axum::{extract::Path, http::StatusCode, Extension, TypedHeader};
 use axum_jsonschema::Json;
 use cog_core::http::Status;
@@ -12,7 +15,7 @@ use crate::{
 pub fn handler() -> ApiRouter {
 	ApiRouter::new()
 		.api_route("/predictions", post(create_prediction))
-		.api_route("/predictions/:prediction_id", post(create_prediction))
+		.api_route("/predictions/:prediction_id", put(create_prediction))
 		.api_route(
 			"/predictions/:prediction_id/cancel",
 			post(cancel_prediction),
