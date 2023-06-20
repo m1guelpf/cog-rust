@@ -40,6 +40,7 @@ async fn create_prediction(
 		id.as_ref()
 			.map_or(String::new(), |id| format!(" with id {id}")),
 	);
+	tracing::trace!("{req:?}");
 
 	let r_prediction = prediction.read().await;
 
