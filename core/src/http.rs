@@ -31,7 +31,6 @@ pub enum WebhookEvent {
 pub struct Request<T = Value> {
 	pub webhook: Option<Url>,
 	pub webhook_event_filters: Option<Vec<WebhookEvent>>,
-	pub output_file_prefix: Option<Url>,
 
 	pub input: T,
 }

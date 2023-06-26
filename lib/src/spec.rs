@@ -1,11 +1,8 @@
 use anyhow::Result;
-use async_trait::async_trait;
-use cog_core::CogResponse;
 use core::fmt::Debug;
 use mime_guess::Mime;
-use reqwest::Client;
 use schemars::{gen::SchemaGenerator, schema::Schema, JsonSchema};
-use serde_json::Value;
+use serde::Serialize;
 use std::{
 	env::{self, temp_dir},
 	fs::File,
@@ -26,7 +23,7 @@ impl Path {
 	/// # Errors
 	///
 	/// Returns an error if the url cannot be downloaded or a temporary file cannot be created.
-	pub fn new(url: &Url) -> Result<Self> {
+	pub(crate) fn new(url: &Url) -> Result<Self> {
 		if url.scheme() == "data" {
 			return Self::from_dataurl(url);
 		}
@@ -46,7 +43,7 @@ impl Path {
 	/// # Errors
 	///
 	/// Returns an error if the url cannot be decoded or a temporary file cannot be created.
-	pub fn from_dataurl(url: &Url) -> Result<Self> {
+	pub(crate) fn from_dataurl(url: &Url) -> Result<Self> {
 		let data = url.path().split(',').last().unwrap_or_else(|| url.path());
 
 		let file_bytes = base64_decode(data)?;
@@ -71,19 +68,18 @@ impl Path {
 	/// # Panics
 	///
 	/// Panics if the file name is not valid unicode.
-	pub async fn upload_put(&self, upload_url: &Url) -> Result<String> {
+	pub(crate) fn upload_put(&self, upload_url: &Url) -> Result<String> {
 		let url = upload_url.join(self.0.file_name().unwrap().to_str().unwrap())?;
 		tracing::debug!("Uploading file to {url}");
 
 		let file_bytes = std::fs::read(&self.0)?;
 		let mime_type = tree_magic_mini::from_u8(&file_bytes);
 
-		let response = Client::new()
+		let response = reqwest::blocking::Client::new()
 			.put(url)
 			.header("Content-Type", mime_type)
 			.body(file_bytes)
-			.send()
-			.await?;
+			.send()?;
 
 		if !response.status().is_success() {
 			anyhow::bail!("Failed to upload file to {upload_url}");
@@ -98,7 +94,7 @@ impl Path {
 	/// # Errors
 	///
 	/// Returns an error if the file cannot be read.
-	pub fn to_dataurl(&self) -> Result<String> {
+	pub(crate) fn to_dataurl(&self) -> Result<String> {
 		let file_bytes = std::fs::read(&self.0)?;
 		let mime_type = tree_magic_mini::from_u8(&file_bytes);
 
@@ -106,22 +102,6 @@ impl Path {
 			"data:{mime_type};base64,{base64}",
 			base64 = base64_encode(&file_bytes)
 		))
-	}
-}
-
-#[async_trait]
-impl CogResponse for Path {
-	async fn into_response(self, req: cog_core::http::Request) -> Result<Value> {
-		if let Some(upload_url) = req.output_file_prefix.or_else(|| {
-			env::var("UPLOAD_URL")
-				.map(|url| url.parse().ok())
-				.ok()
-				.flatten()
-		}) {
-			return Ok(self.upload_put(&upload_url).await?.into());
-		}
-
-		Ok(self.to_dataurl()?.into())
 	}
 }
 
@@ -158,6 +138,30 @@ impl<'de> serde::Deserialize<'de> for Path {
 
 		Self::new(&Url::parse(&url).map_err(serde::de::Error::custom)?)
 			.map_err(serde::de::Error::custom)
+	}
+}
+
+impl Serialize for Path {
+	fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+	where
+		S: serde::Serializer,
+	{
+		let url = env::var("UPLOAD_URL")
+			.map(|url| url.parse().ok())
+			.ok()
+			.flatten()
+			.map_or_else(
+				|| self.to_dataurl(),
+				|upload_url| self.upload_put(&upload_url),
+			);
+
+		serializer.serialize_str(&url.map_err(serde::ser::Error::custom)?)
+	}
+}
+
+impl From<PathBuf> for Path {
+	fn from(path: PathBuf) -> Self {
+		Self(path)
 	}
 }
 

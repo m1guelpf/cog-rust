@@ -26,7 +26,7 @@ pub trait Cog: Sized + Send {
 /// A response from a cog
 #[async_trait]
 pub trait CogResponse: Send {
-	async fn into_response(self, upload_url: Request) -> Result<Value>;
+	async fn into_response(self, request: Request) -> Result<Value>;
 }
 
 #[async_trait]
