@@ -89,7 +89,7 @@ impl Builder {
 						Command::new("echo")
 							.arg(format!(
 								// Replicate runs `python -m cog.server.http --other-args*` and we only care about the other args
-								"\"#!/bin/bash\\nshift 3; /usr/bin/{} \"$@\"\"",
+								"\"#!/bin/bash\\nshift 2; /usr/bin/{} \"\\$@\"\"",
 								self.package.name
 							))
 							.arg(">")

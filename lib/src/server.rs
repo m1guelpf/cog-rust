@@ -119,14 +119,35 @@ fn tweak_generated_schema(openapi: &mut OpenApi) {
 	)
 	.unwrap();
 
+	replace_request_schema(
+		openapi,
+		"/predictions/{prediction_id}",
+		(Method::PUT, "application/json"),
+		Schema::new_ref("#/components/schemas/PredictionRequest".to_string()),
+	)
+	.unwrap();
+
 	replace_response_schema(
 		openapi,
 		"/predictions",
 		(
 			Method::POST,
 			openapi::StatusCode::Code(200),
-			"application/json",
+			"application/json".to_string(),
 		),
 		Schema::new_ref("#/components/schemas/PredictionResponse".to_string()),
-	);
+	)
+	.unwrap();
+
+	replace_response_schema(
+		openapi,
+		"/predictions/{prediction_id}",
+		(
+			Method::PUT,
+			openapi::StatusCode::Code(200),
+			"application/json".to_string(),
+		),
+		Schema::new_ref("#/components/schemas/PredictionResponse".to_string()),
+	)
+	.unwrap();
 }

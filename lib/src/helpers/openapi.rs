@@ -1,4 +1,4 @@
-use aide::openapi::{OpenApi, SchemaObject, StatusCode};
+use aide::openapi::{MediaType, OpenApi, ReferenceOr, Response, SchemaObject, StatusCode};
 use axum::http::Method;
 use schemars::{gen::SchemaGenerator, schema::Schema, JsonSchema};
 
@@ -58,7 +58,7 @@ pub fn replace_request_schema(
 pub fn replace_response_schema(
 	api: &mut OpenApi,
 	path: &str,
-	(method, status_code, media_type): (Method, StatusCode, &str),
+	(method, status_code, media_type): (Method, StatusCode, String),
 	json_schema: schemars::schema::SchemaObject,
 ) -> Option<()> {
 	let paths = api.paths.as_mut()?;
@@ -74,18 +74,27 @@ pub fn replace_response_schema(
 		_ => return None,
 	};
 
-	let responses = operation.responses.as_mut()?;
-	let response = responses
-		.responses
-		.get_mut(&status_code)
-		.unwrap()
-		.as_item_mut()?;
+	let mut responses = operation.responses.clone().unwrap_or_default();
+	let response = responses.responses.get(&status_code).cloned();
+	let mut response = response.unwrap_or_else(|| ReferenceOr::Item(Response::default()));
+	let response = response.as_item_mut()?;
 
-	response.content.get_mut(media_type)?.schema = Some(SchemaObject {
-		example: None,
-		external_docs: None,
-		json_schema: Schema::Object(json_schema),
-	});
+	response.content.insert(
+		media_type,
+		MediaType {
+			schema: Some(SchemaObject {
+				example: None,
+				external_docs: None,
+				json_schema: Schema::Object(json_schema),
+			}),
+			..Default::default()
+		},
+	);
+
+	responses
+		.responses
+		.insert(status_code, ReferenceOr::Item(response.clone()));
+	operation.responses = Some(responses);
 
 	Some(())
 }
