@@ -114,7 +114,7 @@ The Replicate team has done an amazing job building the simplest way to go from 
 
 However, using Python as the base layer comes with its on share of challenges, like enormus image sizes or extra latency on model requests.
 
-As the non-Python ML ecosystem slowly flourishes (see [whisper.cpp](https://github.com/ggerganov/whisper.cpp) and [llama.cpp](https://github.com/ggerganov/whisper.cpp) for example), 
+As the non-Python ML ecosystem slowly flourishes (see [whisper.cpp](https://github.com/ggerganov/whisper.cpp) and [llama.cpp](https://github.com/ggerganov/whisper.cpp) for example), cog-rust will provide that extra performance exposed on the same interfaces users and tools are already used to.
 
 ## Prerequisites
 
