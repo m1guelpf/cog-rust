@@ -1,6 +1,7 @@
 [workspace]
 members = ["core", "lib", "cli"]
 exclude = ["examples"]
+resolver = "2"
 
 [workspace.package]
 edition = "2021"
