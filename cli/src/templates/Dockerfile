@@ -9,8 +9,8 @@ RUN cargo chef prepare --bin {:bin_name} --recipe-path recipe.json
 
 FROM chef AS builder
 RUN mkdir /src/lib
-RUN cargo install cargo-deb
 RUN apt-get update && apt-get install -y cmake clang
+RUN curl -L --proto '=https' --tlsv1.2 -sSf "https://github.com/cargo-bins/cargo-quickinstall/releases/download/cargo-deb-1.44.0/cargo-deb-1.44.0-x86_64-unknown-linux-gnu.tar.gz" | tar -xzvvf - -C /usr/local/cargo/bin
 #SLOT before_build
 COPY --from=planner /src/recipe.json recipe.json
 RUN cargo chef cook --release --bin {:bin_name}

@@ -1,6 +1,6 @@
 [package]
 name = "cargo-cog"
-version = "1.0.6"
+version = "1.0.7"
 description = "A cargo subcommand to build, run and publish machine learning containers"
 readme = { workspace = true }
 edition = { workspace = true }
