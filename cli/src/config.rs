@@ -24,31 +24,46 @@ impl Config {
 		Self::from_package(package)
 	}
 	pub fn from_package(package: &Package) -> Self {
-		package
+		let mut config = package
 			.metadata
 			.get("cog")
 			.and_then(|config| Self::deserialize(config).ok())
-			.unwrap_or_default()
-	}
+			.unwrap_or_default();
 
-	pub fn image_name(&self, image: Option<String>, cwd: &Path) -> String {
-		if let Some(image) = image.or_else(|| self.image.clone()) {
-			return image;
+		if config.image.is_none() {
+			config.image = Some(Self::generate_image_name(&package.name));
 		}
 
-		let project_name = cwd
-			.file_name()
-			.unwrap()
-			.to_str()
-			.unwrap()
+		config
+	}
+
+	pub fn image_name(&self, image: Option<String>) -> String {
+		image.or_else(|| self.image.clone()).unwrap()
+	}
+
+	fn generate_image_name(name: &str) -> String {
+		let mut image_name = name
 			.to_lowercase()
-			.replace(' ', "-")
-			.replace(|c: char| !c.is_alphanumeric(), "")
+			.replace(|c: char| !c.is_alphanumeric(), "-");
+
+		if !image_name.starts_with("cog-") {
+			image_name = format!("cog-{image_name}");
+		}
+
+		let mut image_name = image_name
 			.chars()
-			.take(30 - "cog-".len()) // Docker image names can only be 30 characters long.
+			.take(30 - "cog-".len())
 			.collect::<String>();
 
-		format!("cog-{project_name}")
+		while let Some(last_char) = image_name.chars().last() {
+			if last_char.is_alphanumeric() {
+				break;
+			}
+
+			image_name.pop();
+		}
+
+		image_name
 	}
 
 	#[allow(clippy::unused_self)]
@@ -60,5 +75,43 @@ impl Config {
 			},
 		}))
 		.unwrap()
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn generate_image_name() {
+		assert_eq!(
+			"cog-hello-world",
+			Config::generate_image_name("hello-world"),
+		);
+
+		assert_eq!(
+			"cog-hello-world",
+			Config::generate_image_name("cog-hello-world"),
+		);
+
+		assert_eq!(
+			"cog-a-very-very-long-packa",
+			Config::generate_image_name("a-very-very-long-package-name"),
+		);
+
+		assert_eq!(
+			"cog-with-a-very-very-long",
+			Config::generate_image_name("cog-with-a-very-very-long-package-name"),
+		);
+
+		assert_eq!(
+			"cog-with-a-very-very-long",
+			Config::generate_image_name("cog-with-a-very-very-long-package-name"),
+		);
+
+		assert_eq!(
+			"cog-with-invalid-name",
+			Config::generate_image_name("cog-with-invalid-name-!@#$%^&*()"),
+		);
 	}
 }

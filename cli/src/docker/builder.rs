@@ -117,7 +117,7 @@ impl Builder {
             "Failed to create .dockerignore file. Make sure you are in the root of your Cog project."
         );
 
-		let image_name = self.config.image_name(tag, &self.cwd);
+		let image_name = self.config.image_name(tag);
 		Self::build_image(&dockerfile, &image_name, None, true);
 
 		fs::remove_file(self.cwd.join(".dockerignore")).expect("Failed to clean up .dockerignore");
