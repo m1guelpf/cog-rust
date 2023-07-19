@@ -175,10 +175,10 @@ pub fn get_first_input(schema: &SchemaObject) -> Option<String> {
 
 	for (k, v) in input_properties.as_object()? {
 		let Some(order) = v.get("x-order").and_then(|o| match o {
-            Value::Number(n) => n.as_i64(),
-            _ => None,
-        }) else {
-            continue;
+			Value::Number(n) => n.as_i64(),
+			_ => None,
+		}) else {
+			continue;
 		};
 
 		if order == 0 {
