@@ -5,6 +5,8 @@ use std::path::Path;
 
 #[derive(Debug, Deserialize, Serialize, Default)]
 pub struct Config {
+	#[serde(default)]
+	pub cpu: bool,
 	pub image: Option<String>,
 }
 
@@ -71,6 +73,7 @@ impl Config {
 		serde_json::to_string(&json!({
 			"predict": "main.rs:CogModel",
 			"build": {
+				"gpu": self.cpu,
 				"python_version" : "N/A"
 			},
 		}))

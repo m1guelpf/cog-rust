@@ -45,12 +45,17 @@ impl Dockerfile {
 pub trait DockerfileExt {
 	fn build(self) -> Self;
 	fn for_bin(self, bin: &str) -> Self;
+	fn into_image(self, image: &str) -> Self;
 	fn handler(self, slot: &str, value: impl FnOnce() -> Option<Dockerfile>) -> Self;
 }
 
 impl DockerfileExt for String {
 	fn for_bin(self, bin: &str) -> Self {
 		self.replace("{:bin_name}", bin)
+	}
+
+	fn into_image(self, image: &str) -> Self {
+		self.replace("{:base_image}", image)
 	}
 
 	fn handler(self, slot: &str, value: impl FnOnce() -> Option<Dockerfile>) -> Self {

@@ -18,7 +18,7 @@ COPY . .
 RUN cargo deb --output /src/target/{:bin_name}.deb
 #SLOT after_build
 
-FROM debian:bookworm-slim as runtime
+FROM {:base_image} as runtime
 WORKDIR /src
 RUN apt-get update
 COPY --from=builder /src/lib/* /lib/x86_64-linux-gnu/

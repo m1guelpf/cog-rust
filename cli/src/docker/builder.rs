@@ -60,13 +60,22 @@ impl Builder {
 		let torchlib_cpu = || {
 			self.deps.iter().find(|dep| dep.name == "torch-sys")?;
 
-			Some(Dockerfile::new().run_multiple(&[
-                Command::new("curl")
-                    .args(["-sSL", "https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.0.1%2Bcpu.zip", "-o libtorch.zip"]),
-                Command::new("unzip").arg("libtorch.zip"),
-                Command::new("rm").arg("libtorch.zip"),
-                Command::new("cp").arg("libtorch/lib/*").arg("/src/lib")
-            ]).env("LIBTORCH", "/src/libtorch"))
+			let pytorch_url = if self.config.cpu {
+				"https://download.pytorch.org/libtorch/cu118/libtorch-cxx11-abi-shared-with-deps-2.0.1%2Bcu118.zip"
+			} else {
+				"https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.0.1%2Bcpu.zip"
+			};
+
+			Some(
+				Dockerfile::new()
+					.run_multiple(&[
+						Command::new("curl").args(["-sSL", pytorch_url, "-o libtorch.zip"]),
+						Command::new("unzip").arg("libtorch.zip"),
+						Command::new("rm").arg("libtorch.zip"),
+						Command::new("cp").arg("libtorch/lib/*").arg("/src/lib"),
+					])
+					.env("LIBTORCH", "/src/libtorch"),
+			)
 		};
 
 		let weights_dir = || {
@@ -107,6 +116,11 @@ impl Builder {
 			.handler("before_build", torchlib_cpu)
 			.handler("before_runtime", weights_dir)
 			.handler("after_runtime", replicate_hack)
+			.into_image(if self.config.cpu {
+				"nvidia/cuda:12.2.0-base-ubuntu22.04"
+			} else {
+				"debian:bookworm-slim"
+			})
 			.build()
 	}
 
