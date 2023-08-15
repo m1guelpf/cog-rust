@@ -26,8 +26,8 @@ pub(crate) struct Cli {
 	dump_schema_and_exit: bool,
 
 	/// Ignore SIGTERM and wait for a request to /shutdown (or a SIGINT) before exiting
-	#[clap(long)]
-	await_explicit_shutdown: bool,
+	#[arg(long, default_missing_value = "true", require_equals = true, num_args=0..=1, action = clap::ArgAction::Set)]
+	await_explicit_shutdown: Option<bool>,
 
 	/// An endpoint for Cog to PUT output files to
 	#[clap(long)]

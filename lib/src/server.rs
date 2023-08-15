@@ -27,7 +27,7 @@ pub(crate) async fn start<T: Cog + 'static>(args: Cli) -> Result<()> {
 	let router = routes::handler().finish_api(&mut openapi);
 	tweak_generated_schema(&mut openapi);
 
-	let shutdown = Shutdown::new(args.await_explicit_shutdown)?;
+	let shutdown = Shutdown::new(args.await_explicit_shutdown.unwrap_or_default())?;
 	if args.dump_schema_and_exit {
 		println!("{}", serde_json::to_string(&openapi).unwrap());
 		shutdown.start();
