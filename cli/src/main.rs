@@ -1,63 +1,43 @@
 #![warn(clippy::all, clippy::pedantic, clippy::nursery)]
 
-use anyhow::Result;
 use clap::Parser;
-use docker::Docker;
-use std::path::PathBuf;
+use context::Context;
+use CargoSubcommand::Cog;
 
 mod commands;
 mod config;
+mod context;
 mod docker;
 mod helpers;
 
-#[derive(Parser)]
-#[clap(bin_name = "cargo")]
-struct Cli {
+/// Cog's CLI interface
+///
+/// This binary should be invoked by Cargo with the new `cog` subcommand. If
+/// you're reading this, consider manually adding `cog` as the first argument.
+#[derive(Debug, Parser)]
+struct Cargo {
 	#[clap(subcommand)]
-	command: CargoInvocation,
+	command: CargoSubcommand,
 }
 
-#[derive(Parser)]
-pub enum CargoInvocation {
-	// All `cargo` subcommands receive their name (e.g. `cog` as the first command).
-	// See https://github.com/rust-lang/rustfmt/pull/3569
+#[derive(Debug, Parser)]
+pub enum CargoSubcommand {
 	/// A cargo subcommand to build, run and publish machine learning containers
-	Cog {
-		#[command(subcommand, long_about)]
-		command: commands::Command,
-	},
+	Cog(Cli),
 }
 
-#[derive(Debug, Clone)]
-pub struct Context {
-	pub cwd: PathBuf,
-}
-
-impl Context {
-	/// Create a new context
-	///
-	/// # Errors
-	///
-	/// This function will return an error if the current working directory cannot be determined.
-	pub fn new() -> Result<Self> {
-		Docker::check_connection()?;
-
-		Ok(Self {
-			cwd: std::env::current_dir()?,
-		})
-	}
-
-	#[must_use]
-	pub fn into_builder(self) -> crate::docker::Builder {
-		crate::docker::Builder::new(self.cwd)
-	}
+#[derive(Parser, Debug)]
+#[command(about, author, display_name = "cargo-cog")]
+#[command(override_usage = "cargo cog [OPTIONS] [COMMAND]")]
+pub struct Cli {
+	#[command(subcommand)]
+	pub command: commands::Command,
 }
 
 #[tokio::main]
 async fn main() {
-	let cli = Cli::parse();
-	let ctx = Context::new().unwrap();
-	let CargoInvocation::Cog { command } = cli.command;
+	let cargo = Cargo::parse();
+	let Cog(cli) = cargo.command;
 
-	commands::exec(ctx, command).await;
+	commands::exec(cli.command, Context::new().unwrap()).await;
 }

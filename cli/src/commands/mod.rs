@@ -55,7 +55,7 @@ pub enum Command {
 	},
 }
 
-pub async fn exec(ctx: Context, command: Command) {
+pub async fn exec(command: Command, ctx: Context) {
 	match command {
 		Command::Debug => debug::handle(ctx),
 		Command::Build { tag } => build::handle(ctx, tag),
