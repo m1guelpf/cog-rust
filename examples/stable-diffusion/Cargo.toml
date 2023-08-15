@@ -6,6 +6,7 @@ publish = false
 authors = ["Miguel Piedrafita <soy@miguelpiedrafita.com>"]
 
 [package.metadata.cog]
+cpu = true
 image = "stable-diffusion-rs"
 
 [dependencies]

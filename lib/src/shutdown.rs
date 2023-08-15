@@ -107,10 +107,10 @@ fn register_handlers(await_explicit_shutdown: bool) -> impl Future<Output = ()> 
 		}
 
 		tokio::select! {
-			_ = ctrl_c => {
+			() = ctrl_c => {
 				tracing::info!("Received Ctrl+C signal");
 			},
-			_ = terminate => {
+			() = terminate => {
 				tracing::info!("Received terminate signal");
 			},
 		}

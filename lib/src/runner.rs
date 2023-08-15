@@ -59,7 +59,7 @@ impl Runner {
 		let handle = tokio::spawn(async move {
 			tracing::info!("Running setup()...");
 			let cog = tokio::select! {
-				_ = tokio::time::sleep(Duration::from_secs(5 * 60)) => {
+				() = tokio::time::sleep(Duration::from_secs(5 * 60)) => {
 					tracing::error!("Failed run setup(): Timed out");
 					RUNNER_HEALTH.swap(Health::SetupFailed, Ordering::SeqCst);
 					handle_shutdown.start();

@@ -141,7 +141,7 @@ impl Prediction {
 			};
 
 			tokio::select! {
-				_ = self.shutdown.handle() => {
+				() = self.shutdown.handle() => {
 					tracing::debug!("Shutdown requested. Cancelling running prediction: {:?}", self.id);
 					return;
 				},
