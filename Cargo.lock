@@ -334,7 +334,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-cog"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "anyhow",
  "base64 0.21.2",

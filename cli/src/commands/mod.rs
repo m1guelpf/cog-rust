@@ -10,6 +10,7 @@ mod predict;
 mod push;
 
 #[derive(Debug, Subcommand)]
+#[clap(bin_name = "cargo-cog", version, author)]
 pub enum Command {
 	/// Log in to Replicate's Docker registry
 	Login {

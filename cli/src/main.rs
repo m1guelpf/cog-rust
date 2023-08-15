@@ -11,10 +11,21 @@ mod docker;
 mod helpers;
 
 #[derive(Parser)]
-#[command(author, version, about, long_about = None)]
+#[clap(bin_name = "cargo")]
 struct Cli {
-	#[command(subcommand)]
-	command: commands::Command,
+	#[clap(subcommand)]
+	command: CargoInvocation,
+}
+
+#[derive(Parser)]
+pub enum CargoInvocation {
+	// All `cargo` subcommands receive their name (e.g. `cog` as the first command).
+	// See https://github.com/rust-lang/rustfmt/pull/3569
+	/// A cargo subcommand to build, run and publish machine learning containers
+	Cog {
+		#[command(subcommand, long_about)]
+		command: commands::Command,
+	},
 }
 
 #[derive(Debug, Clone)]
@@ -46,6 +57,7 @@ impl Context {
 async fn main() {
 	let cli = Cli::parse();
 	let ctx = Context::new().unwrap();
+	let CargoInvocation::Cog { command } = cli.command;
 
-	commands::exec(ctx, cli.command).await;
+	commands::exec(ctx, command).await;
 }
