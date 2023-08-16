@@ -20,7 +20,7 @@ RUN cargo deb --output /src/target/{:bin_name}.deb
 
 FROM {:base_image} as runtime
 WORKDIR /src
-RUN apt-get update
+RUN apt-get update && apt-get install -y ca-certificates
 COPY --from=builder /src/lib/* /lib/x86_64-linux-gnu/
 COPY --from=builder /src/target/{:bin_name}.deb /src/{:bin_name}.deb
 #SLOT before_runtime

@@ -9,7 +9,10 @@ use std::{
 };
 
 use super::dockerfile::{Dockerfile, DockerfileExt};
-use crate::{config::Config, docker::Docker};
+use crate::{
+	config::Config,
+	docker::{Docker, Error as DockerError, RunOptions},
+};
 
 pub struct Builder {
 	cwd: PathBuf,
@@ -137,26 +140,18 @@ impl Builder {
 		fs::remove_file(self.cwd.join(".dockerignore")).expect("Failed to clean up .dockerignore");
 
 		println!("Adding labels to image...");
-		let output = Command::new("docker")
-			.arg("run")
-			.arg("--rm")
-			.arg("-e")
-			.arg("RUST_LOG=cog_rust=error")
-			.arg(&image_name)
-			.arg(format!("/usr/bin/{}", self.package.name))
-			.arg("--dump-schema-and-exit")
-			.output()
-			.expect("Failed to extract schema from image.");
-
-		assert!(
-			output.status.success(),
-			"Failed to extract schema from image: {}",
-			String::from_utf8(output.stderr).expect(
-				"Failed to parse output from command `docker run --rm -e RUST_LOG=cog_rust=error {image_name} --dump-schema-and-exit`."
-			)
-		);
-
-		let schema = String::from_utf8(output.stdout).expect("Failed to parse schema.");
+		let schema = match Docker::run(RunOptions {
+			image: image_name.clone(),
+			env: vec!["RUST_LOG=cog_rust=error".to_string()],
+			flags: vec!["--dump-schema-and-exit".to_string()],
+			cmd: Some(format!("/usr/bin/{}", self.package.name)),
+			..RunOptions::default()
+		}) {
+			Ok(output) => output,
+			Err(DockerError::Parse(_)) => panic!("Failed to parse schema."),
+			Err(DockerError::Command(err)) => panic!("Failed to extract schema from image: {err}"),
+			_ => panic!("Failed to extract schema from image."),
+		};
 
 		Self::build_image(
 			&format!("FROM {image_name}"),

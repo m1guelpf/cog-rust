@@ -23,6 +23,9 @@ pub enum Error {
 	#[error("The provided image could not be found.")]
 	NotFound,
 
+	#[error("Provided flags without a command.")]
+	CmdMissing,
+
 	#[error("{0}")]
 	Command(String),
 
@@ -45,6 +48,8 @@ pub struct RunOptions {
 	image: String,
 	env: Vec<String>,
 	interactive: bool,
+	flags: Vec<String>,
+	cmd: Option<String>,
 	ports: HashMap<u16, u16>,
 	volumes: HashMap<PathBuf, String>,
 }
@@ -200,8 +205,7 @@ impl Docker {
 	pub fn run(opts: RunOptions) -> Result<String, Error> {
 		let mut cmd = Command::new("docker");
 
-		cmd.arg("run");
-		cmd.arg("--rm");
+		cmd.arg("run").arg("--rm").stderr(Stdio::piped());
 
 		if opts.detach {
 			cmd.arg("--detach");
@@ -229,7 +233,19 @@ impl Docker {
 			]);
 		}
 
-		let output = cmd.arg(opts.image).stderr(Stdio::piped()).output()?;
+		cmd.arg(opts.image);
+
+		if let Some(bin) = opts.cmd {
+			cmd.arg(bin);
+
+			for flag in opts.flags {
+				cmd.arg(flag);
+			}
+		} else if !opts.flags.is_empty() {
+			return Err(Error::CmdMissing);
+		}
+
+		let output = cmd.stderr(Stdio::piped()).output()?;
 
 		if !output.status.success() {
 			return Err(Error::Command(format!(
