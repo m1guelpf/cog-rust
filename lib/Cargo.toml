@@ -1,6 +1,6 @@
 [package]
 name = "cog-rust"
-version = "1.0.9"
+version = "1.0.10"
 description = "Rust containers for machine learning"
 readme = { workspace = true }
 edition = { workspace = true }

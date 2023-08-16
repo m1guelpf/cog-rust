@@ -85,7 +85,11 @@ impl Path {
 			.send()?;
 
 		if !response.status().is_success() {
-			anyhow::bail!("Failed to upload file to {upload_url}");
+			anyhow::bail!(
+				"Failed to upload file to {upload_url}: got {}. {}",
+				response.status(),
+				response.text().unwrap_or_default()
+			);
 		}
 
 		tracing::debug!("Uploaded file to {upload_url}");

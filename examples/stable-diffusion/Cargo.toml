@@ -1,5 +1,5 @@
 [package]
-name = "cog-resnet"
+name = "cog-stable-diffusion"
 version = "0.0.0"
 edition = "2021"
 publish = false
