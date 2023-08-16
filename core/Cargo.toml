@@ -1,6 +1,6 @@
 [package]
 name = "cog-core"
-version = "0.1.0"
+version = "0.1.1"
 description = "Core types and traits for rust-cog, a Rust toolkit for machine learning."
 readme = { workspace = true }
 edition = { workspace = true }
@@ -11,6 +11,7 @@ categories = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
+tokio = "1.31.0"
 anyhow = "1.0.71"
 serde = "1.0.164"
 thiserror = "1.0.40"

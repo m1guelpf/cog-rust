@@ -30,8 +30,9 @@ pub trait CogResponse: Send {
 }
 
 #[async_trait]
-impl<T: Serialize + Send> CogResponse for T {
+impl<T: Serialize + Send + 'static> CogResponse for T {
 	async fn into_response(self, _: Request) -> Result<Value> {
-		Ok(serde_json::to_value(self)?)
+		// We use spawn_blocking here to allow blocking code in serde Serialize impls (used in `Path`, for example).
+		Ok(tokio::task::spawn_blocking(move || serde_json::to_value(self)).await??)
 	}
 }
