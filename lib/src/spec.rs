@@ -12,7 +12,7 @@ use std::{
 use url::Url;
 use uuid::Uuid;
 
-use crate::helpers::{base64_decode, base64_encode};
+use crate::helpers::{base64_decode, base64_encode, url_join};
 
 #[derive(Debug)]
 pub struct Path(PathBuf);
@@ -69,14 +69,17 @@ impl Path {
 	///
 	/// Panics if the file name is not valid unicode.
 	pub(crate) fn upload_put(&self, upload_url: &Url) -> Result<String> {
-		let url = upload_url.join(self.0.file_name().unwrap().to_str().unwrap())?;
+		let url = url_join(
+			upload_url.clone(),
+			self.0.file_name().unwrap().to_str().unwrap(),
+		);
 		tracing::debug!("Uploading file to {url}");
 
 		let file_bytes = std::fs::read(&self.0)?;
 		let mime_type = tree_magic_mini::from_u8(&file_bytes);
 
 		let response = reqwest::blocking::Client::new()
-			.put(url)
+			.put(url.clone())
 			.header("Content-Type", mime_type)
 			.body(file_bytes)
 			.send()?;
@@ -86,7 +89,7 @@ impl Path {
 		}
 
 		tracing::debug!("Uploaded file to {upload_url}");
-		Ok(upload_url.as_str().to_string())
+		Ok(url.as_str().to_string())
 	}
 
 	/// Convert the file to a data url

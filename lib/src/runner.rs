@@ -10,6 +10,7 @@ use std::{
 	time::{Duration, Instant},
 };
 use tokio::sync::{mpsc, oneshot};
+use tracing::{trace_span, Instrument};
 
 use crate::{errors::ValidationErrorSet, shutdown::Shutdown};
 
@@ -65,7 +66,7 @@ impl Runner {
 					handle_shutdown.start();
 					return;
 				}
-				cog = T::setup() => {
+				cog = T::setup().instrument(trace_span!("cog_setup")) => {
 					match cog {
 						Ok(cog) => Arc::new(Mutex::new(cog)),
 						Err(error) => {
@@ -97,10 +98,13 @@ impl Runner {
 			}
 
 			// Cog is not Sync, so we wrap it with a Mutex and this function to run it from an async context (and thus make it cancellable).
-			let run_prediction_async = |input| async {
-				let cog = cog.lock().unwrap();
+			let run_prediction_async = |input| {
+				async {
+					let cog = cog.lock().unwrap();
 
-				cog.predict(input)
+					cog.predict(input)
+				}
+				.instrument(trace_span!("cog_predict"))
 			};
 
 			while let Some((tx, req)) = rx.recv().await {
@@ -120,7 +124,7 @@ impl Runner {
 						let _ = tx.send(Err(Error::Canceled));
 						tracing::debug!("Prediction canceled");
 					},
-					response = run_prediction_async(input)=> {
+					response = run_prediction_async(input) => {
 						tracing::debug!("Prediction complete: {response:?}");
 						let _ = tx.send(match response {
 							Err(error) => Err(Error::Prediction(error)),
