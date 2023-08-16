@@ -6,6 +6,7 @@ use schemars::{schema_for, JsonSchema};
 use serde_json::Value;
 use std::{
 	env,
+	panic::{catch_unwind, AssertUnwindSafe},
 	sync::{atomic::Ordering, Arc, Mutex},
 	time::{Duration, Instant},
 };
@@ -21,6 +22,9 @@ pub enum Error {
 
 	#[error("Prediction was canceled")]
 	Canceled,
+
+	#[error("The model panicked.")]
+	Panic,
 
 	#[error("Failed to validate input.")]
 	Validation(ValidationErrorSet),
@@ -102,7 +106,7 @@ impl Runner {
 				async {
 					let cog = cog.lock().unwrap();
 
-					cog.predict(input)
+					catch_unwind(AssertUnwindSafe(|| cog.predict(input)))
 				}
 				.instrument(trace_span!("cog_predict"))
 			};
@@ -127,8 +131,9 @@ impl Runner {
 					response = run_prediction_async(input) => {
 						tracing::debug!("Prediction complete: {response:?}");
 						let _ = tx.send(match response {
-							Err(error) => Err(Error::Prediction(error)),
-							Ok(response) => match response.into_response(req).await {
+							Err(_) => Err(Error::Panic),
+							Ok(Err(error)) => Err(Error::Prediction(error)),
+							Ok(Ok(response)) => match response.into_response(req).await {
 								Err(error) => Err(Error::Prediction(error)),
 								Ok(response) => Ok((response, start.elapsed())),
 							},
