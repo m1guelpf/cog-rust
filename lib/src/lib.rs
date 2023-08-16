@@ -34,7 +34,7 @@ pub(crate) struct Cli {
 	upload_url: Option<url::Url>,
 }
 
-/// Start the server with the given cog.
+/// Start the server with the given model.
 ///
 /// # Errors
 ///
@@ -54,6 +54,7 @@ pub async fn start<T: Cog + 'static>() -> Result<()> {
 }
 
 #[macro_export]
+/// Start the server with the given model.
 macro_rules! start {
 	($struct_name:ident) => {
 		#[tokio::main]

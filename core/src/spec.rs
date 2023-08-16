@@ -7,25 +7,27 @@ use serde_json::Value;
 
 use crate::http::Request;
 
+/// A Cog model
 #[async_trait]
 pub trait Cog: Sized + Send {
 	type Request: DeserializeOwned + JsonSchema + Send;
 	type Response: CogResponse + Debug + JsonSchema;
 
-	/// Setup the cog
+	/// Setup the model
 	///
 	/// # Errors
 	///
 	/// Returns an error if setup fails.
 	async fn setup() -> Result<Self>;
 
-	/// Run a prediction
+	/// Run a prediction on the model
 	fn predict(&self, input: Self::Request) -> Result<Self::Response>;
 }
 
-/// A response from a cog
+/// A response from a Cog model
 #[async_trait]
 pub trait CogResponse: Send {
+	/// Convert the response into a JSON value
 	async fn into_response(self, request: Request) -> Result<Value>;
 }
 
