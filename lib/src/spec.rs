@@ -14,11 +14,6 @@ use uuid::Uuid;
 
 use crate::helpers::{base64_decode, base64_encode, url_join};
 
-#[derive(Debug, serde::Deserialize)]
-struct UploadResponse {
-	url: Url,
-}
-
 #[derive(Debug)]
 pub struct Path(PathBuf);
 
@@ -94,13 +89,7 @@ impl Path {
 			);
 		}
 
-		let response = response.text().unwrap_or_default();
-
-		let Ok(UploadResponse { mut url }) = serde_json::from_str::<UploadResponse>(&response)
-		else {
-			anyhow::bail!("Failed to parse response from {url}: got {}", response);
-		};
-
+		let mut url = response.url().clone();
 		url.set_query(None);
 
 		tracing::debug!("Uploaded file to {url}");
