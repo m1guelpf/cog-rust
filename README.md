@@ -1,4 +1,4 @@
-# 🚧 Cog[-rust]: Containers for machine learning
+# Cog[-rust]: Containers for machine learning
 
 Cog is an open-source tool that lets you package Rust ML models in a standard, production-ready container.
 
@@ -6,17 +6,17 @@ It's output should be interchangeable with [Replicate's own Cog](https://github.
 
 ## Highlights
 
-- 📦 **Docker containers without the pain.** Writing your own `Dockerfile` can be a bewildering process. With Cog, you define your environment [inside your Cargo.toml](#how-it-works) and it generates a Docker image with all the best practices: Nvidia base images, efficient caching of dependencies, minimal image sizes, sensible environment variable defaults, and so on.
+-   📦 **Docker containers without the pain.** Writing your own `Dockerfile` can be a bewildering process. With Cog, you define your environment [inside your Cargo.toml](#how-it-works) and it generates a Docker image with all the best practices: Nvidia base images, efficient caching of dependencies, minimal image sizes, sensible environment variable defaults, and so on.
 
-- 🤬️ **No more CUDA hell.** Cog knows which CUDA/cuDNN/tch/tensorflow combos are compatible and will set it all up correctly for you.
+-   🤬️ **No more CUDA hell.** Cog knows which CUDA/cuDNN/tch/tensorflow combos are compatible and will set it all up correctly for you.
 
-- ✅ **Define the inputs and outputs for your model in Rust.** Then, Cog generates an OpenAPI schema and validates the inputs and outputs with JSONSchema.
+-   ✅ **Define the inputs and outputs for your model in Rust.** Then, Cog generates an OpenAPI schema and validates the inputs and outputs with JSONSchema.
 
-- 🎁 **Automatic HTTP prediction server**: Your model's types are used to dynamically generate a RESTful HTTP API using [axum](https://github.com/tokio-rs/axum).
+-   🎁 **Automatic HTTP prediction server**: Your model's types are used to dynamically generate a RESTful HTTP API using [axum](https://github.com/tokio-rs/axum).
 
-- ☁️ **Cloud storage.** Files can be read and written directly to Amazon S3 and Google Cloud Storage. (Coming soon.)
+-   ☁️ **Cloud storage.** Files can be read and written directly to Amazon S3 and Google Cloud Storage. (Coming soon.)
 
-- 🚀 **Ready for production.** Deploy your model anywhere that Docker images run. Your own infrastructure, or [Replicate](https://replicate.com).
+-   🚀 **Ready for production.** Deploy your model anywhere that Docker images run. Your own infrastructure, or [Replicate](https://replicate.com).
 
 ## How it works
 
@@ -27,7 +27,7 @@ Easily define your environment inside your `Cargo.toml`. Cog infers the rest:
 name = "ml-model"
 
 [package.metadata.cog]
-cpu = true # optional, defaults to false
+gpu = true # optional, defaults to false
 image = "docker-image-name" # optional, defaults to `cog-[package.name]`
 ```
 
@@ -118,8 +118,8 @@ As the non-Python ML ecosystem slowly flourishes (see [whisper.cpp](https://gith
 
 ## Prerequisites
 
-- **macOS, Linux or Windows**. Cog works anywhere Rust works.
-- **Docker**. Cog uses Docker to create a container for your model. You'll need to [install Docker](https://docs.docker.com/get-docker/) before you can run Cog.
+-   **macOS, Linux or Windows**. Cog works anywhere Rust works.
+-   **Docker**. Cog uses Docker to create a container for your model. You'll need to [install Docker](https://docs.docker.com/get-docker/) before you can run Cog.
 
 ## Install
 
@@ -129,4 +129,24 @@ You can install Cog with Cargo:
 
 ```console
 cargo install cargo-cog
+```
+
+## Usage
+
+```
+$ cargo cog --help
+A cargo subcommand to build, run and publish machine learning containers
+
+Usage: cargo cog [OPTIONS] [COMMAND]
+
+Commands:
+  login    Log in to Replicate's Docker registry
+  build    Build the model in the current directory into a Docker image
+  push     Build and push model in current directory to a Docker registry
+  predict  Run a prediction
+  help     Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
 ```

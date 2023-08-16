@@ -60,10 +60,10 @@ impl Builder {
 	}
 
 	pub fn generate_dockerfile(&self) -> String {
-		let torchlib_cpu = || {
+		let torchlib = || {
 			self.deps.iter().find(|dep| dep.name == "torch-sys")?;
 
-			let pytorch_url = if self.config.cpu {
+			let pytorch_url = if self.config.gpu {
 				"https://download.pytorch.org/libtorch/cu118/libtorch-cxx11-abi-shared-with-deps-2.0.1%2Bcu118.zip"
 			} else {
 				"https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.0.1%2Bcpu.zip"
@@ -116,10 +116,10 @@ impl Builder {
 		include_str!("../templates/Dockerfile")
 			.to_string()
 			.for_bin(&self.package.name)
-			.handler("before_build", torchlib_cpu)
+			.handler("before_build", torchlib)
 			.handler("before_runtime", weights_dir)
 			.handler("after_runtime", replicate_hack)
-			.into_image(if self.config.cpu {
+			.into_image(if self.config.gpu {
 				"nvidia/cuda:12.2.0-base-ubuntu22.04"
 			} else {
 				"debian:bookworm-slim"

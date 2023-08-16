@@ -5,7 +5,7 @@ use serde_json::json;
 #[derive(Debug, Deserialize, Serialize, Default)]
 pub struct Config {
 	#[serde(default)]
-	pub cpu: bool,
+	pub gpu: bool,
 	pub image: Option<String>,
 }
 
@@ -58,7 +58,7 @@ impl Config {
 		serde_json::to_string(&json!({
 			"predict": "main.rs:CogModel",
 			"build": {
-				"gpu": self.cpu,
+				"gpu": self.gpu,
 				"python_version" : "N/A"
 			},
 		}))

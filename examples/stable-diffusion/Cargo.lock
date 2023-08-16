@@ -445,22 +445,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "cog-resnet"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "cog-rust",
- "diffusers",
- "schemars",
- "serde",
- "tch",
- "tokio",
-]
-
-[[package]]
 name = "cog-rust"
-version = "1.0.9"
+version = "1.0.14"
 dependencies = [
  "aide",
  "anyhow",
@@ -492,6 +478,20 @@ dependencies = [
  "tree_magic_mini",
  "url",
  "uuid",
+]
+
+[[package]]
+name = "cog-stable-diffusion"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "cog-rust",
+ "diffusers",
+ "schemars",
+ "serde",
+ "tch",
+ "tokio",
 ]
 
 [[package]]
