@@ -11,12 +11,12 @@ categories = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-tokio = "1.31.0"
 anyhow = "1.0.71"
 serde = "1.0.164"
 thiserror = "1.0.40"
 serde_json = "1.0.96"
 async-trait = "0.1.68"
 url = { version = "2.4.0", features = ["serde"] }
+tokio = { version = "1.31.0", features = ["rt"] }
 chrono = { version = "0.4.26", features = ["serde"] }
 schemars = { version = "0.8.12", features = ["url", "chrono"] }
