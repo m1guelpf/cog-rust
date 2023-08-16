@@ -69,10 +69,7 @@ impl Path {
 	///
 	/// Panics if the file name is not valid unicode.
 	pub(crate) fn upload_put(&self, upload_url: &Url) -> Result<String> {
-		let url = url_join(
-			upload_url.clone(),
-			self.0.file_name().unwrap().to_str().unwrap(),
-		);
+		let url = url_join(upload_url, self.0.file_name().unwrap().to_str().unwrap());
 		tracing::debug!("Uploading file to {url}");
 
 		let file_bytes = std::fs::read(&self.0)?;
@@ -86,13 +83,13 @@ impl Path {
 
 		if !response.status().is_success() {
 			anyhow::bail!(
-				"Failed to upload file to {upload_url}: got {}. {}",
+				"Failed to upload file to {url}: got {}. {}",
 				response.status(),
 				response.text().unwrap_or_default()
 			);
 		}
 
-		tracing::debug!("Uploaded file to {upload_url}");
+		tracing::debug!("Uploaded file to {url}");
 		Ok(url.as_str().to_string())
 	}
 

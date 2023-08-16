@@ -14,8 +14,8 @@ pub fn base64_decode<T: AsRef<[u8]>>(bytes: T) -> Result<Vec<u8>, DecodeError> {
 
 /// Append a path to a URL.
 /// This is a workaround for the fact that `Url::join` will get rid of the last path segment if it doesn't end with a slash.
-pub fn url_join(url: Url, path: &str) -> Url {
-	let mut url = url;
+pub fn url_join(url: &Url, path: &str) -> Url {
+	let mut url = url.clone();
 	let mut path_parts = url.path_segments_mut().unwrap();
 
 	path_parts.push(path);
