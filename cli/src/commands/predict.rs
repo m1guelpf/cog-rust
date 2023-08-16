@@ -1,4 +1,5 @@
 use base64::{engine::general_purpose::STANDARD as Base64, Engine};
+use cog_core::http::Status;
 use dataurl::DataUrl;
 use mime_guess::Mime;
 use schemars::schema::SchemaObject;
@@ -46,6 +47,14 @@ async fn predict_individual_inputs(
 		.unwrap_or_default();
 
 	let prediction = predictor.predict(inputs).await.unwrap();
+
+	if !matches!(prediction.status, Status::Succeeded) {
+		eprintln!(
+			"Prediction failed: {}",
+			prediction.error.unwrap_or_default()
+		);
+		std::process::exit(1);
+	}
 
 	let response_schema = (|| {
 		schema
