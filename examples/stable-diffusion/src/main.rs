@@ -20,15 +20,15 @@ struct ModelRequest {
 	/// Random seed. Leave blank to randomize the seed
 	seed: Option<u32>,
 
-	/// Number of images to output. (minimum: 1; maximum: 4)
+	/// Number of images to output.
 	#[validate(range(min = 1, max = 4))]
 	num_outputs: Option<u8>,
 
-	/// Number of denoising steps (minimum: 1; maximum: 500)
+	/// Number of denoising steps.
 	#[validate(range(min = 1, max = 500))]
 	num_inference_steps: Option<u8>,
 
-	/// Scale for classifier-free guidance (minimum: 1; maximum: 20)
+	/// Scale for classifier-free guidance.
 	#[validate(range(min = 1, max = 20))]
 	guidance_scale: Option<f64>,
 }
@@ -110,7 +110,7 @@ impl Cog for StableDiffusion {
 			let image = (image / 2 + 0.5).clamp(0., 1.).to_device(Device::Cpu);
 			let image = (image * 255.).to_kind(Kind::Uint8);
 
-			let final_image = PathBuf::from(format!("output-{}.png", idx));
+			let final_image = PathBuf::from(format!("output-{idx}.png"));
 			tch::vision::image::save(&image, &final_image)?;
 			outputs.push(final_image.into());
 		}
