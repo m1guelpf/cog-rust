@@ -17,6 +17,7 @@ pub fn base64_decode<T: AsRef<[u8]>>(bytes: T) -> Result<Vec<u8>, DecodeError> {
 pub fn url_join(url: &Url, path: &str) -> Url {
 	let mut url = url.clone();
 	let mut path_parts = url.path_segments_mut().unwrap();
+	path_parts.pop_if_empty();
 
 	path_parts.push(path);
 	drop(path_parts);
