@@ -31,7 +31,7 @@ pub enum Error {
 	Unknown,
 
 	#[error("Failed to wait for prediction: {0}")]
-	ReceiverError(#[from] flume::RecvError),
+	Receiver(#[from] flume::RecvError),
 
 	#[error("Failed to run prediction: {0}")]
 	Validation(#[from] ValidationErrorSet),

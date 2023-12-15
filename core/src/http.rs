@@ -1,9 +1,8 @@
-use std::collections::HashMap;
-
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 use url::Url;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]

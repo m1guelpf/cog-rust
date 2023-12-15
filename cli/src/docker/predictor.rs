@@ -36,7 +36,7 @@ impl Predictor {
 		serde_json::from_str::<SchemaObject>(
 			image
 				.as_array()
-				.and_then(|v| v.get(0))
+				.and_then(|v| v.first())
 				.and_then(|v| {
 					v.get("Config")
 						.and_then(Value::as_object)
@@ -143,7 +143,7 @@ impl Predictor {
 
 			let state = container
 				.as_array()
-				.and_then(|v| v.get(0))
+				.and_then(|v| v.first())
 				.and_then(Value::as_object)
 				.and_then(|v| v.get("State"))
 				.and_then(Value::as_object)

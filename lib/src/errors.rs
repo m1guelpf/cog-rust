@@ -99,7 +99,7 @@ impl From<PredictionError> for HTTPError {
 				detail: serde_json::to_value(e.to_string()).unwrap(),
 			},
 			PredictionError::Validation(e) => e.into(),
-			PredictionError::NotComplete | PredictionError::ReceiverError(_) => Self {
+			PredictionError::NotComplete | PredictionError::Receiver(_) => Self {
 				status_code: StatusCode::INTERNAL_SERVER_ERROR,
 				detail: serde_json::to_value(e.to_string()).unwrap(),
 			},

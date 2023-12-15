@@ -32,11 +32,11 @@ pub async fn handle(
 	let mut predictor = Predictor::new(image);
 
 	predictor.start().await;
-	predict_individual_inputs(&mut predictor, inputs, output).await;
+	predict_individual_inputs(&predictor, inputs, output).await;
 }
 
 async fn predict_individual_inputs(
-	predictor: &mut Predictor,
+	predictor: &Predictor,
 	inputs: Option<Vec<String>>,
 	mut output: Option<PathBuf>,
 ) {

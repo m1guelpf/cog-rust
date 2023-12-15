@@ -1,5 +1,4 @@
 use anyhow::Result;
-use async_trait::async_trait;
 use cog_rust::{Cog, Path};
 use schemars::JsonSchema;
 
@@ -13,7 +12,6 @@ struct ModelRequest {
 
 struct BlurModel {}
 
-#[async_trait]
 impl Cog for BlurModel {
 	type Request = ModelRequest;
 	type Response = Path;

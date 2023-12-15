@@ -1,5 +1,4 @@
 use anyhow::Result;
-use async_trait::async_trait;
 use cog_rust::Cog;
 use schemars::JsonSchema;
 
@@ -13,7 +12,6 @@ struct ExampleModel {
 	prefix: String,
 }
 
-#[async_trait]
 impl Cog for ExampleModel {
 	type Request = ModelRequest;
 	type Response = String;

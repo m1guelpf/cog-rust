@@ -1,5 +1,4 @@
 use anyhow::Result;
-use async_trait::async_trait;
 use cog_rust::Cog;
 use schemars::JsonSchema;
 use std::collections::HashMap;
@@ -19,7 +18,6 @@ struct ResnetModel {
 	model: Box<dyn ModuleT + Send>,
 }
 
-#[async_trait]
 impl Cog for ResnetModel {
 	type Request = ModelRequest;
 	type Response = HashMap<String, f64>;

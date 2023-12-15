@@ -1,7 +1,4 @@
-use std::path::PathBuf;
-
 use anyhow::Result;
-use async_trait::async_trait;
 use cog_rust::{Cog, Path};
 use diffusers::{
 	models::{unet_2d::UNet2DConditionModel, vae::AutoEncoderKL},
@@ -10,6 +7,7 @@ use diffusers::{
 	utils::DeviceSetup,
 };
 use schemars::JsonSchema;
+use std::path::PathBuf;
 use tch::{nn::Module, Device, Kind, Tensor};
 
 #[derive(serde::Deserialize, JsonSchema)]
@@ -42,7 +40,6 @@ struct StableDiffusion {
 	text_model: clip::ClipTextTransformer,
 }
 
-#[async_trait]
 impl Cog for StableDiffusion {
 	type Request = ModelRequest;
 	type Response = Vec<Path>;

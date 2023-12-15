@@ -6,17 +6,17 @@ It's output should be interchangeable with [Replicate's own Cog](https://github.
 
 ## Highlights
 
--   📦 **Docker containers without the pain.** Writing your own `Dockerfile` can be a bewildering process. With Cog, you define your environment [inside your Cargo.toml](#how-it-works) and it generates a Docker image with all the best practices: Nvidia base images, efficient caching of dependencies, minimal image sizes, sensible environment variable defaults, and so on.
+- 📦 **Docker containers without the pain.** Writing your own `Dockerfile` can be a bewildering process. With Cog, you define your environment [inside your Cargo.toml](#how-it-works) and it generates a Docker image with all the best practices: Nvidia base images, efficient caching of dependencies, minimal image sizes, sensible environment variable defaults, and so on.
 
--   🤬️ **No more CUDA hell.** Cog knows which CUDA/cuDNN/tch/tensorflow combos are compatible and will set it all up correctly for you.
+- 🤬️ **No more CUDA hell.** Cog knows which CUDA/cuDNN/tch/tensorflow combos are compatible and will set it all up correctly for you.
 
--   ✅ **Define the inputs and outputs for your model in Rust.** Then, Cog generates an OpenAPI schema and validates the inputs and outputs with JSONSchema.
+- ✅ **Define the inputs and outputs for your model in Rust.** Then, Cog generates an OpenAPI schema and validates the inputs and outputs with JSONSchema.
 
--   🎁 **Automatic HTTP prediction server**: Your model's types are used to dynamically generate a RESTful HTTP API using [axum](https://github.com/tokio-rs/axum).
+- 🎁 **Automatic HTTP prediction server**: Your model's types are used to dynamically generate a RESTful HTTP API using [axum](https://github.com/tokio-rs/axum).
 
--   ☁️ **Cloud storage.** Files can be read and written directly to Amazon S3 and Google Cloud Storage. (Coming soon.)
+- ☁️ **Cloud storage.** Files can be read and written directly to Amazon S3 and Google Cloud Storage. (Coming soon.)
 
--   🚀 **Ready for production.** Deploy your model anywhere that Docker images run. Your own infrastructure, or [Replicate](https://replicate.com).
+- 🚀 **Ready for production.** Deploy your model anywhere that Docker images run. Your own infrastructure, or [Replicate](https://replicate.com).
 
 ## How it works
 
@@ -35,7 +35,6 @@ Define how predictions are run on your model on your `main.rs`:
 
 ```rust
 use anyhow::Result;
-use async_trait::async_trait;
 use cog_rust::Cog;
 use schemars::JsonSchema;
 use std::collections::HashMap;
@@ -55,7 +54,6 @@ struct ResnetModel {
   model: Box<dyn ModuleT + Send>,
 }
 
-#[async_trait]
 impl Cog for ResnetModel {
   type Request = ModelRequest;
   type Response = HashMap<String, f64>;
@@ -118,8 +116,8 @@ As the non-Python ML ecosystem slowly flourishes (see [whisper.cpp](https://gith
 
 ## Prerequisites
 
--   **macOS, Linux or Windows**. Cog works anywhere Rust works.
--   **Docker**. Cog uses Docker to create a container for your model. You'll need to [install Docker](https://docs.docker.com/get-docker/) before you can run Cog.
+- **macOS, Linux or Windows**. Cog works anywhere Rust works.
+- **Docker**. Cog uses Docker to create a container for your model. You'll need to [install Docker](https://docs.docker.com/get-docker/) before you can run Cog.
 
 ## Install
 

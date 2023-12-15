@@ -23,7 +23,7 @@ mime_guess = "2.0.4"
 serde_json = "1.0.96"
 webbrowser = "0.8.10"
 cargo_metadata = "0.15.4"
-cog-core = { path = "../core", version = "0.1.0" }
+cog-core = { path = "../core", version = "0.2.0" }
 clap = { version = "4.3.3", features = ["derive"] }
 tokio = { version = "1.28.2", features = ["full"] }
 reqwest = { version = "0.11.18", features = ["json"] }

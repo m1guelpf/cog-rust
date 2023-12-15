@@ -1,14 +1,13 @@
 use anyhow::Result;
-use async_trait::async_trait;
 use core::fmt::Debug;
 use schemars::JsonSchema;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
+use std::future::Future;
 
 use crate::http::Request;
 
 /// A Cog model
-#[async_trait]
 pub trait Cog: Sized + Send {
 	type Request: DeserializeOwned + JsonSchema + Send;
 	type Response: CogResponse + Debug + JsonSchema;
@@ -18,20 +17,22 @@ pub trait Cog: Sized + Send {
 	/// # Errors
 	///
 	/// Returns an error if setup fails.
-	async fn setup() -> Result<Self>;
+	fn setup() -> impl Future<Output = Result<Self>> + Send;
 
 	/// Run a prediction on the model
+	///
+	/// # Errors
+	///
+	/// Returns an error if the prediction fails.
 	fn predict(&self, input: Self::Request) -> Result<Self::Response>;
 }
 
 /// A response from a Cog model
-#[async_trait]
 pub trait CogResponse: Send {
 	/// Convert the response into a JSON value
-	async fn into_response(self, request: Request) -> Result<Value>;
+	fn into_response(self, request: Request) -> impl Future<Output = Result<Value>> + Send;
 }
 
-#[async_trait]
 impl<T: Serialize + Send + 'static> CogResponse for T {
 	async fn into_response(self, _: Request) -> Result<Value> {
 		// We use spawn_blocking here to allow blocking code in serde Serialize impls (used in `Path`, for example).
